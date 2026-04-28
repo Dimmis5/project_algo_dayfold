@@ -13,15 +13,12 @@ def run_app():
     net.add_friendship(2, 3)
     net.add_friendship(3, 4)
     net.add_friendship(4, 1)
-
-    print("Tentative de connexion à Neo4j...")
-    time.sleep(10) 
     
     try:
         viz = Neo4jVisualizer()
         viz.sync_graph(net)
         viz.close()
-        print("Graphe synchronisé avec succès !")
+        print("Succès!")
     except Exception as e:
         print(f"Erreur : {e}")
 
