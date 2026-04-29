@@ -1,15 +1,42 @@
 import time
-from models import DayfoldGraph
+import random
+from models import DayfoldGraph, CategoryNode
 from algorithms.bfs_suggest_friends import suggest_friends
 from algorithms.feed import build_feed, anti_scroll_gate
+from algorithms.category_tree import display_hierarchy, find_category
 from visualizer import Neo4jVisualizer
 
 def run_app():
     net = DayfoldGraph()
-    
-    # Step 1 : Create users, boards and pins
-    print("Step 1")
 
+    print(" Step 3: Building the Category Tree ")
+    
+    root_cat = CategoryNode(0, "All Categories")
+
+    cat_decor = CategoryNode(1, "Home Decor")
+    cat_scand = CategoryNode(11, "Scandinavian")
+    cat_indus = CategoryNode(12, "Industrial")
+    cat_decor.add_child(cat_scand)
+    cat_decor.add_child(cat_indus)
+    
+    cat_tech = CategoryNode(2, "Technology")
+    cat_gaming = CategoryNode(21, "Gaming")
+    cat_office = CategoryNode(22, "Office")
+    cat_tech.add_child(cat_gaming)
+    cat_tech.add_child(cat_office)
+    
+    cat_art = CategoryNode(3, "Art")
+    cat_digital = CategoryNode(31, "Digital Art")
+    cat_trad = CategoryNode(32, "Watercolor")
+    cat_art.add_child(cat_digital)
+    cat_art.add_child(cat_trad)
+    
+    root_cat.add_child(cat_decor)
+    root_cat.add_child(cat_tech)
+    root_cat.add_child(cat_art)
+
+    display_hierarchy(root_cat)
+    print("\nStep 1: Creating Users, Boards and Pins ")
     alice   = net.add_user(1, "Alice")
     bob     = net.add_user(2, "Bob")
     charlie = net.add_user(3, "Charlie")
@@ -17,82 +44,56 @@ def run_app():
     emma    = net.add_user(5, "Emma")
     lucas   = net.add_user(6, "Lucas")
 
-    # Alice - Décoration
-    board_deco = net.add_board_to_user(1, 101, "Mon Salon Scandinave", "Décoration")
+    board_deco = net.add_board_to_user(1, 101, "My Scandinavian Living Room", cat_scand)
     if board_deco:
-        net.add_pin_to_board(board_deco, 501, "Photo Canape Bleu")
-        net.add_pin_to_board(board_deco, 502, "Lampe Vintage 1950")
-        net.add_pin_to_board(board_deco, 503, "Etagere Industrielle")
+        net.add_pin_to_board(board_deco, 501, "Blue Sofa Photo")
+        net.add_pin_to_board(board_deco, 502, "1950s Vintage Lamp")
 
-    # Bob - Tech
-    board_tech = net.add_board_to_user(2, 102, "Setup Gaming 2024", "Tech")
+    board_tech = net.add_board_to_user(2, 102, "Gaming Setup 2024", cat_gaming)
     if board_tech:
-        net.add_pin_to_board(board_tech, 504, "Carte Graphique RTX 4090")
-        net.add_pin_to_board(board_tech, 505, "Clavier Mecanique RGB")
-        net.add_pin_to_board(board_tech, 506, "Ecran Ultrawide 4K")
+        net.add_pin_to_board(board_tech, 504, "RTX 4090 Graphics Card")
 
-    # Charlie - Décoration
-    board_deco2 = net.add_board_to_user(3, 103, "Inspiration Salon", "Décoration")
+    board_deco2 = net.add_board_to_user(3, 103, "Living Room Inspiration", cat_decor)
     if board_deco2:
-        net.add_pin_to_board(board_deco2, 507, "Tapis Berbere")
-        net.add_pin_to_board(board_deco2, 508, "Plante Monstera")
-        net.add_pin_to_board(board_deco2, 509, "Miroir Rotin")
+        net.add_pin_to_board(board_deco2, 507, "Berber Rug")
 
-    # David - Tech + Décoration
-    board_tech2 = net.add_board_to_user(4, 104, "Home Office Setup", "Tech")
+    board_tech2 = net.add_board_to_user(4, 104, "Home Office Setup", cat_office)
     if board_tech2:
-        net.add_pin_to_board(board_tech2, 510, "Bureau Debout Electrique")
-        net.add_pin_to_board(board_tech2, 511, "Webcam 4K")
+        net.add_pin_to_board(board_tech2, 510, "Electric Standing Desk")
 
-    board_deco3 = net.add_board_to_user(4, 105, "Chambre Cosy", "Décoration")
-    if board_deco3:
-        net.add_pin_to_board(board_deco3, 512, "Guirlande Lumineuse")
-        net.add_pin_to_board(board_deco3, 513, "Tete de Lit Velours")
-
-    # Emma - Art
-    board_art = net.add_board_to_user(5, 106, "Aquarelles du Monde", "Art")
+    board_art = net.add_board_to_user(5, 106, "World Watercolors", cat_trad)
     if board_art:
-        net.add_pin_to_board(board_art, 514, "Paysage Japonais")
-        net.add_pin_to_board(board_art, 515, "Portrait Abstrait")
-        net.add_pin_to_board(board_art, 516, "Nature Morte Moderne")
+        net.add_pin_to_board(board_art, 514, "Japanese Landscape")
 
-    # Lucas - Tech + Art
-    board_tech3 = net.add_board_to_user(6, 107, "Gadgets 2024", "Tech")
-    if board_tech3:
-        net.add_pin_to_board(board_tech3, 517, "Drone FPV Racing")
-        net.add_pin_to_board(board_tech3, 518, "Imprimante 3D Resine")
-
-    board_art2 = net.add_board_to_user(6, 108, "Digital Art", "Art")
+    board_art2 = net.add_board_to_user(6, 108, "Digital Art", cat_digital)
     if board_art2:
-        net.add_pin_to_board(board_art2, 519, "Illustration Cyberpunk")
-        net.add_pin_to_board(board_art2, 520, "Pixel Art Retro")
+        net.add_pin_to_board(board_art2, 519, "Cyberpunk Illustration")
 
-    net.add_friendship(1, 2)
-    net.add_friendship(2, 3)
-    net.add_friendship(3, 4)
-    net.add_friendship(1, 5)
-    net.add_friendship(5, 6)
+    net.add_friendship(1, 2) 
+    net.add_friendship(2, 3) 
+    net.add_friendship(3, 4) 
+    net.add_friendship(1, 5) 
+    net.add_friendship(5, 6) 
 
-    # Step 2 : Feed & Anti-scroll
-    print("\nStep 2 - Feed & Anti-scroll")
+    print("\n Step 2: Feed Engine & Anti-scroll Gate ")
 
-    feed = build_feed(net, 1, daily_limit=10)
-    print(f"Feed for Alice ({len(feed)} pins): {[p.title for p in feed]}")
+    user_feed = build_feed(net, 1, daily_limit=10)
+    print(f"Feed generated for Alice ({len(user_feed)} pins): {[p.title for p in user_feed]}")
 
-    # result_ok = anti_scroll_gate(feed, pins_seen=3)
-    # print(f"Anti-scroll (3 seen)  : {result_ok['message']}")
+    status_ok = anti_scroll_gate(user_feed, pins_seen=3, daily_limit=10)
+    print(f"Anti-scroll Status (3 seen): {status_ok['message']}")
+    
+    status_locked = anti_scroll_gate(user_feed, pins_seen=10, daily_limit=10)
+    print(f"Anti-scroll Status (10 seen): {status_locked['message']}")
 
-    # result_locked = anti_scroll_gate(feed, pins_seen=10)
-    # print(f"Anti-scroll (10 seen) : {result_locked['message']}")
 
-    # Step 4 : Friend suggestions (BFS)
-    print("\nStep 4 - Friend suggestions")
 
-    suggs = suggest_friends(net, 1)
-    print(f"ALGO RESULT : The suggestions for Alice are : {suggs}")
+    print("\n Step 4: Friend Suggestions (BFS Algorithm)")
 
-    # Sync to Neo4j
-    print("\nNeo4j")
+    suggestions = suggest_friends(net, 1)
+    print(f"ALGO RESULT: The suggestions for Alice are: {suggestions}")
+
+    print("\n Connecting to Neo4j for Visualization ")
     viz = Neo4jVisualizer()
     
     max_retries = 15
@@ -100,13 +101,13 @@ def run_app():
         try:
             viz.sync_graph(net)
             viz.close()
-            print("Complete graph successfully synchronized! Check out Neo4j")
+            print("Success: Graph synchronized! Check the Neo4j browser interface.")
             break
         except Exception as e:
-            print(f"Neo4j is not yet ready (Trial {i+1}/{max_retries})...")
+            print(f"Neo4j is not ready yet (Trial {i+1}/{max_retries})...")
             time.sleep(5)
     else:
-        print("Error: Unable to connect to Neo4j")
+        print("Error: Could not connect to Neo4j after multiple attempts.")
 
 if __name__ == "__main__":
     run_app()

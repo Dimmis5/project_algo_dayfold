@@ -6,10 +6,10 @@ class Pin:
 
 
 class Board:
-    def __init__(self, board_id, title, category):
+    def __init__(self, board_id, title, category_node):
         self.board_id = board_id
         self.title = title
-        self.category = category
+        self.category = category_node 
         self.pins = []
 
 
@@ -61,7 +61,6 @@ class MyQueue:
     def is_empty(self):
         return len(self.items) == 0
     
-
 class MyStack:
     def __init__(self):
         self.items = []
@@ -79,3 +78,14 @@ class MyStack:
 
     def size(self):
         return len(self.items)
+    
+class CategoryNode:
+    def __init__(self, cat_id, name):
+        self.cat_id = cat_id
+        self.name = name
+        self.children = [] 
+        self.parent = None 
+
+    def add_child(self, child_node):
+        child_node.parent = self
+        self.children.append(child_node)

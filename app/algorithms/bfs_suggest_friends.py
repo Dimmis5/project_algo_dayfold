@@ -1,7 +1,5 @@
 from models import DayfoldGraph, MyQueue
 
-
-
 def suggest_friends(graph: DayfoldGraph, start_user_id: int) -> list:
     if start_user_id not in graph.users:
         return []
