@@ -1,11 +1,12 @@
 import time
 from models import DayfoldGraph
+from algorithms.bfs_suggest_friends import suggest_friends
 from visualizer import Neo4jVisualizer
 
 def run_app():
     net = DayfoldGraph()
     
-    #  Step 1 : Create users, boards and pins
+    # Step 1 : Create users, boards and pins
     print("Step 1")
 
     alice = net.add_user(1, "Alice")
@@ -25,14 +26,14 @@ def run_app():
     # Step 2 : Create friendships and test the friend suggestion algorithm
     print("\nStep 2")
     
-    net.add_friendship(1, 2) 
-    net.add_friendship(2, 3) 
-    net.add_friendship(3, 4) 
+    net.add_friendship(1, 2)
+    net.add_friendship(2, 3)
+    net.add_friendship(3, 4)
 
-    suggs = net.suggest_friends(1)
+    suggs = suggest_friends(net, 1)
     print(f"RESULT ALGO : The suggestions for Alice are : {suggs}")
 
-
+    # Step 3 : Sync to Neo4j
     print("\nNeo4j")
     viz = Neo4jVisualizer()
     
