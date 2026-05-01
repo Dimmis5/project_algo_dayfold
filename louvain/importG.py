@@ -27,15 +27,24 @@ with driver.session() as session:
                 s.weight = liked * 2+ followed * 2 + saved * 3 + shared * 4;
     """)
     session.run("""
-            MATCH (u1:User)-[:FOLLOWS]->(u2:User)
-            MERGE (u1)-[s:SIMILAR]-(u2)
-            SET s.direct_follow = 1,
-                s.weight = coalesce(s.weight, 0) + 5
+                MATCH (a:User)-[:FOLLOWS]->(b:User)
+                WITH 
+                    CASE WHEN a.id < b.id THEN a ELSE b END AS u1,
+                    CASE WHEN a.id < b.id THEN b ELSE a END AS u2
+                MERGE (u1)-[s:SIMILAR]-(u2)
+                SET s.direct_follow = coalesce(s.direct_follow, 0) + 1,
+                    s.weight = coalesce(s.weight, 0) + 5
         """)
     result=session.run("""
             MATCH (u1:User)-[s:SIMILAR]->(u2:User)
             RETURN u1.id AS source,u2.id AS target,s.weight AS weight
         """)
-        
+    sum=0
     for record in result:
+        dic={}
+        if record["source"] not in dic:
+            dic[record["source"]]=record["weight"]
+        else:
+            dic[record["source"]]+=record["weight"]
         G.add_edge(record["source"], record["target"], weight=record["weight"])
+        sum+=record["weight"]

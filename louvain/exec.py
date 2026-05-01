@@ -7,6 +7,9 @@ from community import community_louvain
 if __name__ == "__main__":
     partition = community_louvain.best_partition(Graph.G,weight="weight")
     print(partition)
+    print(Graph.G)
+    print(Graph.G.nodes())
+    print(Graph.G.edges())
     print("Communautés détectées :")
     for user_id, community_id in partition.items():
         print(f"User {user_id} -> Communauté {community_id}")
