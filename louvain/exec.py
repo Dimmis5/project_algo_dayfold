@@ -6,11 +6,7 @@ from community import community_louvain
 # --------------------
 if __name__ == "__main__":
     partition = community_louvain.best_partition(Graph.G,weight="weight")
-    print(partition)
-    print(Graph.G)
-    print(Graph.G.nodes())
-    print(Graph.G.edges())
-    print("Communautés détectées :")
+
     print("===== ARÊTES =====")
     for u, v, data in Graph.G.edges(data=True):
         print(u, "--", v, "poids =", data.get("weight", 1))

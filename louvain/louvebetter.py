@@ -1,3 +1,4 @@
+
 import importG as Graph
 import networkx as nx
 import copy
@@ -11,39 +12,35 @@ import networkx as nx
 G = nx.Graph()
 
 # =========================
-# Niveau 1 : petites paires très fortes
+# NIVEAU 1 : paires fortes
 # =========================
-
-G.add_edge("A", "B", weight=30)
-G.add_edge("C", "D", weight=30)
-G.add_edge("E", "F", weight=30)
-G.add_edge("G", "H", weight=30)
-
-# =========================
-# Niveau 2 : liens moyens entre les paires
-# A-B est proche de C-D
-# E-F est proche de G-H
-# =========================
-
-# Bloc 1 : A,B avec C,D
-G.add_edge("A", "C", weight=5)
-G.add_edge("A", "D", weight=5)
-G.add_edge("B", "C", weight=5)
-G.add_edge("B", "D", weight=5)
-
-# Bloc 2 : E,F avec G,H
-G.add_edge("E", "G", weight=5)
-G.add_edge("E", "H", weight=5)
-G.add_edge("F", "G", weight=5)
-G.add_edge("F", "H", weight=5)
+G.add_edge("A", "B", weight=20)
+G.add_edge("C", "D", weight=20)
+G.add_edge("E", "F", weight=20)
+G.add_edge("G", "H", weight=20)
 
 # =========================
-# Liens faibles entre les deux grands blocs
+# NIVEAU 2 : liens entre paires du même grand bloc
+# A-B proche de C-D
+# E-F proche de G-H
 # =========================
+G.add_edge("A", "C", weight=12)
+G.add_edge("A", "D", weight=12)
+G.add_edge("B", "C", weight=12)
+G.add_edge("B", "D", weight=12)
 
-G.add_edge("B", "E", weight=1)
-G.add_edge("D", "G", weight=1)
-G.add_edge("C", "F", weight=1)
+G.add_edge("E", "G", weight=12)
+G.add_edge("E", "H", weight=12)
+G.add_edge("F", "G", weight=12)
+G.add_edge("F", "H", weight=12)
+
+# =========================
+# LIENS FAIBLES ENTRE LES 2 GRANDS BLOCS
+# =========================
+G.add_edge("A", "E", weight=1)
+G.add_edge("B", "F", weight=1)
+G.add_edge("C", "G", weight=1)
+G.add_edge("D", "H", weight=1)
 
 print("Noeuds :")
 print(G.nodes())
@@ -124,6 +121,8 @@ def mod(community,G):
                     k_i = G.degree(v1, weight="weight")
                     k_j = G.degree(v2, weight="weight")
                     w=G[v2][v1]["weight"] if G.has_edge(v1, v2) else 0
+                    if v1 == v2:
+                        w *= 2
                     p1+=(w-((k_i*k_j)/(2*m)))
 
     return (1/(2*m))*p1
@@ -140,8 +139,6 @@ def modlocal(community,G):
                 w=G[v2][v1]["weight"] if G.has_edge(v1, v2) else 0
                 p1+=(w-((k_i*k_j)/(2*m)))
     return (1/(2*m))*p1
-
-oldsupergroup=0
 def stabilisation(newcommunity,maxmod,count,G):
     print("//////////////////////////")
     print(maxmod)
@@ -161,10 +158,21 @@ def stabilisation(newcommunity,maxmod,count,G):
                     print(modlocal(clone[2]))
                     print (modlocal(clone[1])+modlocal(clone[2])-oldmod-newmod)
                     print(oldmax)"""
-                    dmodu=oldmax+modlocal(clone[1],G)+modlocal(clone[2],G)-oldmod-newmod
+                    dmodu=mod(clone[0],G)
+                    communities = [
+                    nodes
+                     for nodes in clone[0].values()
+                     if len(nodes) > 0
+                    ]
+
+                    print(clone)
+                    print("mod maison :", dmodu)
+                    print("mod NetworkX :", modularity(G, communities, weight="weight"))
+                    print("différence :", abs(dmodu - modularity(G, communities, weight="weight")))
                     print(clone)
                     print(dmodu)
                     if refreshmax[0]<dmodu:
+                        print('changement')
                         refreshmax=(dmodu,clone[0])
                 
                    
@@ -177,64 +185,89 @@ def stabilisation(newcommunity,maxmod,count,G):
                     """
                   
     return [oldmax,refreshmax]
-"""le resultat stabiliser max"""
-def newloop(newcommunity,maxmod,count,G):
-    stab=stabilisation(newcommunity,maxmod,count,G)
-    if abs(stab[1][0] - stab[0]) < EPSILON:
-        return 
-    else:   
-        community=stab[1][1]
-        count+=1
-        newloop(community,stab[1],count,G)
-def partloop(newcommunity,maxmod,count,G):
-    new=newloop(newcommunity,maxmod,count,G)
-    fusion=merge(new)
-    new2=newloop(fusion)
-    fusion2=merge(new2)
-    if mod(fusion2)-mod(fusion)<EPSILON:
-        return 
-    else :
-        partloop(fusion)
-    return
-def merge():
-    supergroup=sup.supergroup(stab[1][1],G)
-    tab.append(supergroup[0])
-    supercommunity=createcommunity(supergroup[1])
-    return 
 
-def boucle (newcommunity,maxmod,count,G):
-     stab=stabilisation(newcommunity,maxmod,count,G)
-     print ("stab")
-     """[0]:oldmax qui est la modularite de depart c est a dire avant satbilisation  celle qui permet de verifier qu il ya eu un changement [1][0]:modularite qui vient d etre calculer apres stabilisation,[1][1]communaute apres stabilisation"""
-     print (stab)
-     
-     if abs(stab[1][0] - stab[0]) < EPSILON:
-        print('arrete')
-        print(count)
-  
-        supergroup=sup.supergroup(stab[1][1],G)
-        tab.append(supergroup[0])
-        supercommunity=createcommunity(supergroup[1])
+def newloop(newcommunity, maxmod, count, G):
+    """
+    Lance la stabilisation jusqu'à ce que la modularité n'augmente plus.
+    Retourne le meilleur résultat : [modularité, communauté]
+    """
 
-        print('supergroup')
-        print(supergroup)
-        """mod est applique sur un dictionnaire de communaute"""
-  
-        newstab=stabilisation(supercommunity,[mod(supercommunity,supergroup[1]),supercommunity],0,supergroup[1])
-        print (newstab)
-        
-        if (abs(mod(supercommunity,supergroup[1])-mod(newstab[1][1],supergroup[1])))<EPSILON:
-            print('fin')
-            print(supergroup)
-            return supergroup 
-        else :
-            boucle(supercommunity,[mod(supercommunity,supergroup[1]),supercommunity],0,supergroup[1])
-     else:   
-        community=stab[1][1]
-        count+=1
-        boucle(community,stab[1],count,G)
-            
+    stab = stabilisation(newcommunity, maxmod, count, G)
 
+    old_mod = stab[0]
+    new_mod = stab[1][0]
+
+    if abs(new_mod - old_mod) < EPSILON:
+        return stab[1]
+
+    community = stab[1][1]
+    count += 1
+
+    return newloop(community, stab[1], count, G)
+
+def merge(result, G):
+    """
+    Transforme les communautés trouvées en super-graphe.
+
+    result = [modularité, communauté]
+    G = graphe actuel
+
+    Retourne :
+    - supercommunity : communauté initiale du super-graphe
+    - supermaxmod : [modularité, supercommunity]
+    - superG : super-graphe
+    """
+
+    community = result[1]
+
+    supergroup = sup.supergroup(community, G)
+
+    # selon ton code actuel :
+    # supergroup[0] = communauté contractée
+    # supergroup[1] = super-graphe NetworkX
+
+    superG = supergroup[1]
+
+    # Chaque super-nœud commence seul dans sa communauté
+    supercommunity = createcommunity(superG)
+
+    super_mod = mod(supercommunity, superG)
+
+    supermaxmod = [super_mod, supercommunity]
+
+    return supercommunity, supermaxmod, superG
+
+def partloop(newcommunity, maxmod, count, G):
+    """
+    Boucle complète Louvain multi-niveaux :
+    1. stabilisation locale
+    2. création du super-graphe
+    3. relance sur le super-graphe
+    4. arrêt si la modularité n'augmente plus
+    """
+
+    # Phase locale sur le graphe actuel
+    result = newloop(newcommunity, maxmod, count, G)
+
+    old_mod = result[0]
+
+    # Création du super-graphe
+    supercommunity, supermaxmod, superG = merge(result, G)
+
+    # Phase locale sur le super-graphe
+    result_super = newloop(supercommunity, supermaxmod, 0, superG)
+
+    new_mod = result_super[0]
+    print(new_mod)
+    print(old_mod)
+    if new_mod  <=old_mod+ EPSILON:
+        print("fin Louvain")
+        print("modularité finale :", old_mod)
+        print("communautés finales :", result[1])
+
+        return result, G
+    print('partloop')
+    return partloop(result_super[1], result_super, 0, superG)
 """liste des voisins"""
 for key,value in community.items():
     for n in value:
@@ -251,32 +284,12 @@ for key,value in community.items():
 oldcommunity=community
 
 community=maxmod[1]
-print (oldcommunity)
-print (maxmod)
-print(boucle(community,maxmod,0,G))
 
+result, final_graph = partloop(community, maxmod, 0, G)
 
-""" sinon tourne en boucle
-    if abs(maxmod[0] - oldmax) < EPSILON:
-        print('arrete')
-        print(count)
-        partition = community_louvain.best_partition(G,weight="weight")
-        print (maxmod)
-        print(partition)
-        print(maxmod[1])
+print("Résultat final :")
+print(result)
 
-        supergroup=sup.supergroup(maxmod[1],G)
-        print(sup.supergroup(maxmod[1],G))
-        print(mod(maxmod[1]))
-        print(mod(supergroup[0]))
-        newstab=stabilisation(supergroup[0],supergroup[1],0)
-        
-        if (mod(supergroup[0])-mod(maxmod[1]))<EPSILON:
-            return 
-        else :
-            stabilisation(supergroup[0],supergroup[1],0)
-        
-        return 
-    community=maxmod[1]
-    count+=1
-    stabilisation(community,maxmod,count)"""
+print("Graphe final :")
+print(final_graph.nodes())
+print(final_graph.edges(data=True))
