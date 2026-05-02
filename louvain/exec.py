@@ -11,6 +11,10 @@ if __name__ == "__main__":
     print(Graph.G.nodes())
     print(Graph.G.edges())
     print("Communautés détectées :")
+    print("===== ARÊTES =====")
+    for u, v, data in Graph.G.edges(data=True):
+        print(u, "--", v, "poids =", data.get("weight", 1))
+
     for user_id, community_id in partition.items():
         print(f"User {user_id} -> Communauté {community_id}")
         
@@ -18,7 +22,7 @@ if __name__ == "__main__":
         for user_id, community_id in partition.items():
             session.run("""
                 MATCH (u:User {id: $id})
-                SET u.community = $community
+                SET u.community = $community    
             """, id=user_id, community=community_id)
     """
     # Groupe 1 : fashion / streetwear
@@ -60,6 +64,7 @@ if __name__ == "__main__":
         "https://example.com/minimal.jpg",
         david_id
     )
+    
 
     # Boards
     board1_id = cr.create_board("Streetwear Ideas", alice_id)

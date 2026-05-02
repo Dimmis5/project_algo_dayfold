@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import psycopg2
 from neo4j import GraphDatabase
 
@@ -7,11 +8,11 @@ from neo4j import GraphDatabase
 pg_conn = psycopg2.connect(
     host="localhost",
     port="5432",
-    database="postgres",
+    database="dayfold",
     user="postgres",
-    password="tureti123"
+    password="tureti123",
+    client_encoding="UTF8"
 )
-
 # --------------------
 # CONFIG NEO4J
 # --------------------
@@ -20,14 +21,14 @@ neo4j_driver = GraphDatabase.driver(
     auth=("neo4j", "testinglimit")
 )
 
-# --------------------
-# INSERT USER
-# --------------------
+
 def create_user(username, email, password_hash):
     with pg_conn.cursor() as cur:
         cur.execute("""
             INSERT INTO users (username, email, password_hash)
             VALUES (%s, %s, %s)
+            ON CONFLICT (email)
+            DO UPDATE SET username = EXCLUDED.username
             RETURNING id;
         """, (username, email, password_hash))
 
@@ -39,14 +40,11 @@ def create_user(username, email, password_hash):
             MERGE (u:User {id: $id})
             SET u.username = $username,
                 u.email = $email
-        """, id=user_id, username=username, email=email)
+        """, id=str(user_id), username=username, email=email)
 
     return user_id
 
 
-# --------------------
-# INSERT BOARD
-# --------------------
 def create_board(name, user_id):
     with pg_conn.cursor() as cur:
         cur.execute("""
@@ -64,21 +62,18 @@ def create_board(name, user_id):
             MERGE (b:Board {id: $board_id})
             SET b.name = $name
             MERGE (u)-[:CREATED]->(b)
-        """, user_id=user_id, board_id=board_id, name=name)
+        """, user_id=str(user_id), board_id=str(board_id), name=name)
 
     return board_id
 
 
-# --------------------
-# INSERT PIN
-# --------------------
-def create_pin(title, description, image_url, user_id):
+def create_pin(title, description, image_url, user_id, category):
     with pg_conn.cursor() as cur:
         cur.execute("""
-            INSERT INTO pins (title, description, image_url, user_id)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO pins (title, description, image_url, user_id, category)
+            VALUES (%s, %s, %s, %s, %s)
             RETURNING id;
-        """, (title, description, image_url, user_id))
+        """, (title, description, image_url, user_id, category))
 
         pin_id = cur.fetchone()[0]
         pg_conn.commit()
@@ -88,16 +83,24 @@ def create_pin(title, description, image_url, user_id):
             MATCH (u:User {id: $user_id})
             MERGE (p:Pin {id: $pin_id})
             SET p.title = $title,
-                p.image_url = $image_url
+                p.description = $description,
+                p.image_url = $image_url,
+                p.category = $category
             MERGE (u)-[:CREATED]->(p)
-        """, user_id=user_id, pin_id=pin_id, title=title, image_url=image_url)
+
+            MERGE (c:Category {name: $category})
+            MERGE (p)-[:IN_CATEGORY]->(c)
+        """,
+        user_id=str(user_id),
+        pin_id=str(pin_id),
+        title=title,
+        description=description,
+        image_url=image_url,
+        category=category)
 
     return pin_id
 
 
-# --------------------
-# ADD PIN TO BOARD
-# --------------------
 def add_pin_to_board(board_id, pin_id):
     with pg_conn.cursor() as cur:
         cur.execute("""
@@ -112,12 +115,9 @@ def add_pin_to_board(board_id, pin_id):
             MATCH (b:Board {id: $board_id})
             MATCH (p:Pin {id: $pin_id})
             MERGE (b)-[:CONTAINS]->(p)
-        """, board_id=board_id, pin_id=pin_id)
+        """, board_id=str(board_id), pin_id=str(pin_id))
 
 
-# --------------------
-# LIKE PIN
-# --------------------
 def like_pin(user_id, pin_id):
     with pg_conn.cursor() as cur:
         cur.execute("""
@@ -132,12 +132,9 @@ def like_pin(user_id, pin_id):
             MATCH (u:User {id: $user_id})
             MATCH (p:Pin {id: $pin_id})
             MERGE (u)-[:LIKED]->(p)
-        """, user_id=user_id, pin_id=pin_id)
+        """, user_id=str(user_id), pin_id=str(pin_id))
 
 
-# --------------------
-# SAVE PIN
-# --------------------
 def save_pin(user_id, pin_id):
     with pg_conn.cursor() as cur:
         cur.execute("""
@@ -152,12 +149,26 @@ def save_pin(user_id, pin_id):
             MATCH (u:User {id: $user_id})
             MATCH (p:Pin {id: $pin_id})
             MERGE (u)-[:SAVED]->(p)
-        """, user_id=user_id, pin_id=pin_id)
+        """, user_id=str(user_id), pin_id=str(pin_id))
 
 
-# --------------------
-# FOLLOW USER
-# --------------------
+def share(user_id, pin_id):
+    with pg_conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO shares (user_id, pin_id)
+            VALUES (%s, %s)
+            ON CONFLICT (user_id, pin_id) DO NOTHING;
+        """, (user_id, pin_id))
+        pg_conn.commit()
+
+    with neo4j_driver.session() as session:
+        session.run("""
+            MATCH (u:User {id: $user_id})
+            MATCH (p:Pin {id: $pin_id})
+            MERGE (u)-[:SHARED]->(p)
+        """, user_id=str(user_id), pin_id=str(pin_id))
+
+
 def follow_user(follower_id, following_id):
     with pg_conn.cursor() as cur:
         cur.execute("""
@@ -172,29 +183,12 @@ def follow_user(follower_id, following_id):
             MATCH (a:User {id: $follower_id})
             MATCH (b:User {id: $following_id})
             MERGE (a)-[:FOLLOWS]->(b)
-        """, follower_id=follower_id, following_id=following_id)
+        """, follower_id=str(follower_id), following_id=str(following_id))
 
-def share(user_id,pin_id):
-     with pg_conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO shares (user_id, pin_id)
-            VALUES (%s, %s)
-            ON CONFLICT (user_id, pin_id) DO NOTHING;
-        """, (user_id, pin_id))
-        pg_conn.commit()
-
-     with neo4j_driver.session() as session:
-        session.run("""
-            MATCH (u:User {id: $user_id})
-            MATCH (p:Pin {id: $pin_id})
-            MERGE (u)-[:SHARED]->(p)    
-        """, user_id=user_id, pin_id=pin_id)
 
 if __name__ == "__main__":
 
-    # --------------------
     # USERS
-    # --------------------
     alice = create_user("alice", "alice@mail.com", "hash")
     bob = create_user("bob", "bob@mail.com", "hash")
     charlie = create_user("charlie", "charlie@mail.com", "hash")
@@ -210,26 +204,41 @@ if __name__ == "__main__":
     jade = create_user("jade", "jade@mail.com", "hash")
     noah = create_user("noah", "noah@mail.com", "hash")
 
-    # --------------------
     # PINS
-    # --------------------
-    street1 = create_pin("Streetwear Hoodie", "Urban outfit", "url1", alice)
-    street2 = create_pin("Sneaker Style", "Sneaker inspiration", "url2", bob)
-    street3 = create_pin("Cargo Pants", "Streetwear cargo", "url3", charlie)
+    street1 = create_pin("Streetwear Hoodie", "Urban outfit", "url1", alice, "streetwear")
+    street2 = create_pin("Sneaker Style", "Sneaker inspiration", "url2", bob, "streetwear")
+    street3 = create_pin("Cargo Pants", "Streetwear cargo", "url3", charlie, "streetwear")
 
-    luxury1 = create_pin("Luxury Dress", "Elegant dress", "url4", emma)
-    luxury2 = create_pin("Minimalist Bag", "Luxury accessory", "url5", david)
-    luxury3 = create_pin("Runway Look", "Fashion week style", "url6", sophia)
+    luxury1 = create_pin("Luxury Dress", "Elegant dress", "url4", emma, "luxury")
+    luxury2 = create_pin("Minimalist Bag", "Luxury accessory", "url5", david, "luxury")
+    luxury3 = create_pin("Runway Look", "Fashion week style", "url6", sophia, "luxury")
 
-    sport1 = create_pin("Gym Outfit", "Fitness clothing", "url7", nina)
-    sport2 = create_pin("Running Shoes", "Sport shoes", "url8", hugo)
-    sport3 = create_pin("Yoga Set", "Yoga fashion", "url9", jade)
+    sport1 = create_pin("Gym Outfit", "Fitness clothing", "url7", nina, "sport")
+    sport2 = create_pin("Running Shoes", "Sport shoes", "url8", hugo, "sport")
+    sport3 = create_pin("Yoga Set", "Yoga fashion", "url9", jade, "sport")
 
-    bridge_pin = create_pin("Sporty Streetwear", "Mix sport and streetwear", "url10", lea)
+    bridge_pin = create_pin("Sporty Streetwear", "Mix sport and streetwear", "url10", lea, "streetwear_sport")
 
-    # --------------------
+    # BOARDS
+    street_board = create_board("Streetwear Ideas", alice)
+    luxury_board = create_board("Luxury Inspiration", emma)
+    sport_board = create_board("Sport Fitness", nina)
+
+    add_pin_to_board(street_board, street1)
+    add_pin_to_board(street_board, street2)
+    add_pin_to_board(street_board, street3)
+    add_pin_to_board(street_board, bridge_pin)
+
+    add_pin_to_board(luxury_board, luxury1)
+    add_pin_to_board(luxury_board, luxury2)
+    add_pin_to_board(luxury_board, luxury3)
+
+    add_pin_to_board(sport_board, sport1)
+    add_pin_to_board(sport_board, sport2)
+    add_pin_to_board(sport_board, sport3)
+    add_pin_to_board(sport_board, bridge_pin)
+
     # COMMUNITY 1 : STREETWEAR
-    # --------------------
     like_pin(alice, street1)
     like_pin(bob, street1)
     like_pin(charlie, street1)
@@ -249,9 +258,7 @@ if __name__ == "__main__":
     follow_user(charlie, lea)
     follow_user(lea, alice)
 
-    # --------------------
     # COMMUNITY 2 : LUXURY
-    # --------------------
     like_pin(emma, luxury1)
     like_pin(david, luxury1)
     save_pin(sophia, luxury1)
@@ -271,9 +278,7 @@ if __name__ == "__main__":
     follow_user(sophia, lucas)
     follow_user(lucas, emma)
 
-    # --------------------
-    # COMMUNITY 3 : SPORT / FITNESS
-    # --------------------
+    # COMMUNITY 3 : SPORT
     like_pin(nina, sport1)
     like_pin(hugo, sport1)
     save_pin(jade, sport1)
@@ -293,9 +298,7 @@ if __name__ == "__main__":
     follow_user(jade, noah)
     follow_user(noah, nina)
 
-    # --------------------
     # LIENS CROISÉS FAIBLES
-    # --------------------
     like_pin(bob, luxury1)
     save_pin(lea, luxury2)
 
@@ -305,19 +308,15 @@ if __name__ == "__main__":
     like_pin(noah, street1)
     save_pin(charlie, sport2)
 
-    # --------------------
-    # BRIDGE PIN : mélange sport + streetwear
-    # --------------------
+    # BRIDGE PIN
     like_pin(alice, bridge_pin)
     like_pin(lea, bridge_pin)
     like_pin(nina, bridge_pin)
     like_pin(hugo, bridge_pin)
 
-    # --------------------
     # FOLLOW PONTS ENTRE GROUPES
-    # --------------------
     follow_user(bob, emma)
     follow_user(lea, nina)
     follow_user(lucas, noah)
 
-    print("Jeu de données complexe créé.")
+    print("Nouvelles données ajoutées dans PostgreSQL et Neo4j.")

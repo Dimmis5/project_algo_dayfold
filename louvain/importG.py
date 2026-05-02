@@ -7,6 +7,7 @@ G = nx.Graph()
 
 
 with driver.session() as session:
+    """"version generale"""
     session.run("""
         MATCH (:User)-[s:SIMILAR]-(:User)
         DELETE s
@@ -36,15 +37,20 @@ with driver.session() as session:
                     s.weight = coalesce(s.weight, 0) + 5
         """)
     result=session.run("""
-            MATCH (u1:User)-[s:SIMILAR]->(u2:User)
-            RETURN u1.id AS source,u2.id AS target,s.weight AS weight
+           MATCH (u1:User)-[s:SIMILAR]-(u2:User)
+           RETURN u1.username AS source, u2.username AS target, s.weight AS weight
         """)
-    sum=0
+   
+  
     for record in result:
-        dic={}
-        if record["source"] not in dic:
-            dic[record["source"]]=record["weight"]
-        else:
-            dic[record["source"]]+=record["weight"]
-        G.add_edge(record["source"], record["target"], weight=record["weight"])
-        sum+=record["weight"]
+       
+            """print (record["source"], record["target"], record["weight"])"""
+            G.add_edge(record["source"], record["target"], weight=record["weight"])
+           
+            
+
+
+    sum = G.size(weight="weight")
+  
+ 
+    
