@@ -1,15 +1,16 @@
 import time
-import random
 from models import DayfoldGraph, CategoryNode
 from algorithms.bfs_suggest_friends import suggest_friends
 from algorithms.feed import build_feed, anti_scroll_gate
 from algorithms.category_tree import display_hierarchy, find_category
+from algorithms.louvain import louvain
+from algorithms.PPR import PersonalizedPageRank, FeedBuilder, build_topic_teleport_set, build_graph_from_dayfold
 from visualizer import Neo4jVisualizer
 
 def run_app():
     net = DayfoldGraph()
 
-    print(" Step 3: Building the Category Tree ")
+    print("Step 1: Building the Category Tree")
     
     root_cat = CategoryNode(0, "All Categories")
 
@@ -36,7 +37,9 @@ def run_app():
     root_cat.add_child(cat_art)
 
     display_hierarchy(root_cat)
-    print("\nStep 1: Creating Users, Boards and Pins ")
+
+    print("\nStep 2: Creating Users, Boards and Pins")
+
     alice   = net.add_user(1, "Alice")
     bob     = net.add_user(2, "Bob")
     charlie = net.add_user(3, "Charlie")
@@ -69,45 +72,77 @@ def run_app():
     if board_art2:
         net.add_pin_to_board(board_art2, 519, "Cyberpunk Illustration")
 
-    net.add_friendship(1, 2) 
-    net.add_friendship(2, 3) 
-    net.add_friendship(3, 4) 
-    net.add_friendship(1, 5) 
-    net.add_friendship(5, 6) 
+    # Communauté 1 : Alice, Bob, Charlie
+    net.add_friendship(1, 2)
+    net.add_friendship(2, 1)
+    net.add_friendship(2, 3)
+    net.add_friendship(3, 2)
 
-    print("\n Step 2: Feed Engine & Anti-scroll Gate ")
+    # Communauté 2 : Emma, Lucas, David
+    net.add_friendship(5, 6)
+    net.add_friendship(6, 5)
+    net.add_friendship(4, 5)
+    net.add_friendship(5, 4)
+
+    net.add_friendship(1, 5)
+
+    print("\nStep 3: Feed Engine & Anti-scroll Gate")
 
     user_feed = build_feed(net, 1, daily_limit=10)
-    print(f"Feed generated for Alice ({len(user_feed)} pins): {[p.title for p in user_feed]}")
+    print(f"Feed for Alice ({len(user_feed)} pins): {[p.title for p in user_feed]}")
 
     status_ok = anti_scroll_gate(user_feed, pins_seen=3, daily_limit=10)
-    print(f"Anti-scroll Status (3 seen): {status_ok['message']}")
-    
+    print(f"Anti-scroll (3 seen)  : {status_ok['message']}")
+
     status_locked = anti_scroll_gate(user_feed, pins_seen=10, daily_limit=10)
-    print(f"Anti-scroll Status (10 seen): {status_locked['message']}")
+    print(f"Anti-scroll (10 seen) : {status_locked['message']}")
 
-
-
-    print("\n Step 4: Friend Suggestions (BFS Algorithm)")
+    print("\nStep 4: Friend Suggestions (BFS)")
 
     suggestions = suggest_friends(net, 1)
-    print(f"ALGO RESULT: The suggestions for Alice are: {suggestions}")
+    print(f"ALGO RESULT: Suggestions for Alice: {suggestions}")
 
-    print("\n Connecting to Neo4j for Visualization ")
+    print("\nStep 5: Community Detection (Louvain)")
+
+    communities = louvain(net)
+    for user_id, comm_id in communities.items():
+        username = net.users[user_id].username
+        print(f"  {username} -> Community {comm_id}")
+
+    print("\nStep 6: Personalized PageRank Feed")
+
+    ppr_graph = build_graph_from_dayfold(net)
+    ppr = PersonalizedPageRank(ppr_graph)
+    feed_builder = FeedBuilder(ppr_graph, ppr)
+
+    teleport = build_topic_teleport_set(ppr_graph, "1")
+    ppr_feed = feed_builder.build_feed(
+        user_id="1",
+        seen_pins=set(),
+        feed_size=10,
+        teleport_set=teleport
+    )
+
+    print(f"  Followed   : {ppr_feed['followed']}")
+    print(f"  Discovery  : {ppr_feed['discovery']}")
+    print(f"  Serendipity: {ppr_feed['serendipity']}")
+
+    # Neo4j Sync
+    print("\nConnecting to Neo4j for Visualization")
     viz = Neo4jVisualizer()
     
     max_retries = 15
     for i in range(max_retries):
         try:
-            viz.sync_graph(net)
+            viz.sync_graph(net, communities=communities)
             viz.close()
-            print("Success: Graph synchronized! Check the Neo4j browser interface.")
+            print("Success: Graph synchronized! Check the Neo4j browser.")
             break
         except Exception as e:
-            print(f"Neo4j is not ready yet (Trial {i+1}/{max_retries})...")
+            print(f"Neo4j not ready yet (Trial {i+1}/{max_retries})...")
             time.sleep(5)
     else:
-        print("Error: Could not connect to Neo4j after multiple attempts.")
+        print("Error: Could not connect to Neo4j.")
 
 if __name__ == "__main__":
     run_app()

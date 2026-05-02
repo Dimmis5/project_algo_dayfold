@@ -175,3 +175,26 @@ class FeedBuilder:
             "discovery":   [pid for _, pid in discovery_pins[:n_discovery]],
             "serendipity": [pid for _, pid in serendipity_pins[:n_serendipity]],
         }
+    
+
+def build_graph_from_dayfold(dayfold_graph) -> Graph:
+    g = Graph()
+
+    for user_id, user in dayfold_graph.users.items():
+        uid = str(user_id)
+        g.add_node(uid, NodeType.USER)
+
+        for board in user.boards:
+            bid = str(board.board_id)
+            g.add_node(bid, NodeType.BOARD)
+            g.user_follows_board(uid, bid)
+
+            for pin in board.pins:
+                pid = str(pin.pin_id)
+                g.add_node(pid, NodeType.PIN)
+                g.board_contains_pin(bid, pid)
+                g.user_saves_pin(uid, pid) 
+        for followed in user.following:
+            g.user_follows_user(uid, str(followed.user_id))
+
+    return g

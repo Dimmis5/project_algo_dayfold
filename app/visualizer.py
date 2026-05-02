@@ -11,22 +11,34 @@ class Neo4jVisualizer:
     def close(self):
         self.driver.close()
 
-    def sync_graph(self, dayfold_graph):
+    def sync_graph(self, dayfold_graph, communities: dict = None):
         with self.driver.session() as session:
             session.run("MATCH (n) DETACH DELETE n")
             
+            # Users
             for u_id, user in dayfold_graph.users.items():
-                session.run("MERGE (u:User {id: $id, name: $name})", 
-                            id=user.user_id, name=user.username)
-                
-                for board in user.boards:
-                    session.run("CREATE (b:Board {id: $bid, title: $title})",
-                                bid=board.board_id, title=board.title)
-                    
-                    for pin in board.pins:
-                        session.run("CREATE (p:Pin {id: $pid, title: $ptitle})",
-                                    pid=pin.pin_id, ptitle=pin.title)
+                community_id = communities[u_id] if communities and u_id in communities else -1
+                session.run(
+                    "MERGE (u:User {id: $id, name: $name, community: $community})",
+                    id=user.user_id, name=user.username, community=community_id
+                )
 
+            # Boards et Pins
+            for u_id, user in dayfold_graph.users.items():
+                for board in user.boards:
+                    category_name = board.category.name if hasattr(board.category, 'name') else str(board.category)
+                    session.run(
+                        "CREATE (b:Board {id: $bid, title: $title, category: $category})",
+                        bid=board.board_id, title=board.title, category=category_name
+                    )
+
+                    for pin in board.pins:
+                        session.run(
+                            "CREATE (p:Pin {id: $pid, title: $ptitle})",
+                            pid=pin.pin_id, ptitle=pin.title
+                        )
+
+            # Relations
             for u_id, user in dayfold_graph.users.items():
                 for followed in user.following:
                     session.run("""
