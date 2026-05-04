@@ -44,3 +44,4 @@ dev.log
 # Secrets
 .env
 
+__pycache__/
