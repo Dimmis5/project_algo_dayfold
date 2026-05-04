@@ -1,1 +1,8 @@
 neo4j
+fastapi
+uvicorn
+psycopg2-binary
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+bcrypt==4.0.1
