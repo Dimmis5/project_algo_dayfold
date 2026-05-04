@@ -255,3 +255,34 @@ def api_ppr_feed(current_user=Depends(get_current_user)):
         teleport_set=teleport
     )
     return ppr_feed
+
+@app.get("/users/{user_id}/profile")
+def get_profile(user_id: int, current_user=Depends(get_current_user)):
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, username, email, is_admin FROM users WHERE id = %s", (user_id,))
+        user = cur.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        cur.execute("SELECT * FROM boards WHERE user_id = %s", (user_id,))
+        boards = cur.fetchall()
+
+        boards_with_pins = []
+        for board in boards:
+            cur.execute("SELECT * FROM pins WHERE board_id = %s", (board["id"],))
+            pins = cur.fetchall()
+            boards_with_pins.append({**board, "pins": list(pins)})
+
+        cur.execute("SELECT COUNT(*) as count FROM follows WHERE following_id = %s", (user_id,))
+        followers = cur.fetchone()["count"]
+
+        cur.execute("SELECT COUNT(*) as count FROM follows WHERE follower_id = %s", (user_id,))
+        following = cur.fetchone()["count"]
+
+    return {
+        "user": dict(user),
+        "boards": boards_with_pins,
+        "followers": followers,
+        "following": following
+    }

@@ -7,35 +7,41 @@ function Login({ onLogin }) {
   const [isRegister, setIsRegister] = useState(false);
   const [form, setForm] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
+  const currentBoard = profile?.boards?.find(b => b.id === selectedBoard);
 
-  const handleSubmit = async () => {
-    setError('');
-    try {
-      if (isRegister) {
-        const res = await fetch(`${API}/auth/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail);
-        onLogin(data.token);
-      } else {
-        const formData = new FormData();
-        formData.append('username', form.email);
-        formData.append('password', form.password);
-        const res = await fetch(`${API}/auth/login`, {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail);
-        onLogin(data.access_token);
-      }
-    } catch (e) {
-      setError(e.message);
-    }
-  };
+    const handleSubmit = async () => {
+        setError('');
+        try {
+        if (isRegister) {
+            const res = await fetch(`${API}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(form)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail);
+            onLogin(data.token, data.user.id);
+        } else {
+            const formData = new FormData();
+            formData.append('username', form.email);
+            formData.append('password', form.password);
+            const res = await fetch(`${API}/auth/login`, {
+            method: 'POST',
+            body: formData
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail);
+            // Récupère le profil pour avoir l'id
+            const meRes = await fetch(`${API}/users/me`, {
+            headers: { Authorization: `Bearer ${data.access_token}` }
+            });
+            const me = await meRes.json();
+            onLogin(data.access_token, me.id);
+        }
+        } catch (e) {
+        setError(e.message);
+        }
+    };
 
   return (
     <div className="login-container">
