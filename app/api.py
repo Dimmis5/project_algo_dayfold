@@ -6,6 +6,12 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from database import get_connection
+from models import DayfoldGraph
+from algorithms.bfs_suggest_friends import suggest_friends
+from algorithms.feed import build_feed, anti_scroll_gate
+from algorithms.louvain import louvain
+from algorithms.PPR import PersonalizedPageRank, FeedBuilder, build_topic_teleport_set, build_graph_from_dayfold
+
 
 app = FastAPI()
 
@@ -164,3 +170,88 @@ def like_pin(pin_id: int, current_user=Depends(get_current_user)):
         pin = cur.fetchone()
         conn.commit()
     return pin
+
+
+
+
+def build_graph_from_postgres(user_id: int) -> DayfoldGraph:
+    """
+    Reconstruit un DayfoldGraph depuis PostgreSQL
+    pour un utilisateur donné et son réseau.
+    """
+    conn = get_connection()
+    graph = DayfoldGraph()
+
+    with conn.cursor() as cur:
+        # Charger tous les utilisateurs
+        cur.execute("SELECT id, username FROM users")
+        for u in cur.fetchall():
+            graph.add_user(u["id"], u["username"])
+
+        # Charger les follows
+        cur.execute("SELECT follower_id, following_id FROM follows")
+        for f in cur.fetchall():
+            graph.add_friendship(f["follower_id"], f["following_id"])
+
+        # Charger les boards
+        cur.execute("SELECT id, title, category, user_id FROM boards")
+        for b in cur.fetchall():
+            graph.add_board_to_user(b["user_id"], b["id"], b["title"], b["category"])
+
+        # Charger les pins
+        cur.execute("SELECT id, title, likes, board_id FROM pins")
+        for p in cur.fetchall():
+            # Trouver le bon board
+            for uid, user in graph.users.items():
+                for board in user.boards:
+                    if board.board_id == p["board_id"]:
+                        graph.add_pin_to_board(board, p["id"], p["title"], p["likes"])
+
+    return graph
+
+
+
+@app.get("/algo/suggest-friends")
+def api_suggest_friends(current_user=Depends(get_current_user)):
+    graph = build_graph_from_postgres(current_user["user_id"])
+    suggestions = suggest_friends(graph, current_user["user_id"])
+    return {"suggestions": suggestions}
+
+
+@app.get("/algo/feed")
+def api_feed(current_user=Depends(get_current_user)):
+    graph = build_graph_from_postgres(current_user["user_id"])
+    feed = build_feed(graph, current_user["user_id"], daily_limit=10)
+    gate = anti_scroll_gate(feed, pins_seen=0, daily_limit=10)
+    return {
+        "feed": [{"id": p.pin_id, "title": p.title, "likes": p.likes} for p in gate["pins"]],
+        "message": gate["message"],
+        "locked": gate["locked"]
+    }
+
+
+@app.get("/algo/communities")
+def api_communities(current_user=Depends(get_current_user)):
+    graph = build_graph_from_postgres(current_user["user_id"])
+    communities = louvain(graph)
+    result = {}
+    for uid, comm_id in communities.items():
+        username = graph.users[uid].username
+        result[username] = comm_id
+    return {"communities": result}
+
+
+@app.get("/algo/ppr-feed")
+def api_ppr_feed(current_user=Depends(get_current_user)):
+    graph = build_graph_from_postgres(current_user["user_id"])
+    ppr_graph = build_graph_from_dayfold(graph)
+    ppr = PersonalizedPageRank(ppr_graph)
+    feed_builder = FeedBuilder(ppr_graph, ppr)
+    teleport = build_topic_teleport_set(ppr_graph, str(current_user["user_id"]))
+    ppr_feed = feed_builder.build_feed(
+        user_id=str(current_user["user_id"]),
+        seen_pins=set(),
+        feed_size=10,
+        teleport_set=teleport
+    )
+    return ppr_feed

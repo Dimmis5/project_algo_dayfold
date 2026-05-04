@@ -6,27 +6,22 @@ const API = 'http://localhost:8000';
 function Feed({ token }) {
   const [pins, setPins] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [antiScrollMessage, setAntiScrollMessage] = useState('');
 
   const headers = { Authorization: `Bearer ${token}` };
 
-  const fetchBoards = useCallback(async () => {
+  const fetchFeed = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`${API}/boards`, { headers });
-    const boards = await res.json();
-
-    const allPins = [];
-    for (const board of boards) {
-      const res2 = await fetch(`${API}/pins/${board.id}`, { headers });
-      const pins = await res2.json();
-      allPins.push(...pins.map(p => ({ ...p, boardTitle: board.title, category: board.category })));
-    }
-    setPins(allPins);
+    const res = await fetch(`${API}/algo/feed`, { headers });
+    const data = await res.json();
+    setPins(data.feed || []);
+    setAntiScrollMessage(data.message || '');
     setLoading(false);
   }, [token]);
 
   useEffect(() => {
-    fetchBoards();
-  }, [fetchBoards]);
+    fetchFeed();
+  }, [fetchFeed]);
 
   const handleLike = async (pinId) => {
     await fetch(`${API}/pins/${pinId}/like`, { method: 'POST', headers });
@@ -37,6 +32,11 @@ function Feed({ token }) {
 
   return (
     <div className="feed-container">
+      {antiScrollMessage && (
+        <div className="antiscroll-banner">
+          {antiScrollMessage}
+        </div>
+      )}
       {pins.length === 0 ? (
         <div className="feed-empty">
           <h2>No pins yet</h2>
@@ -51,7 +51,6 @@ function Feed({ token }) {
               </div>
               <div className="pin-info">
                 <p className="pin-title">{pin.title}</p>
-                <p className="pin-board">{pin.boardTitle} · {pin.category}</p>
                 <button className="pin-like-btn" onClick={() => handleLike(pin.id)}>
                   ♥ {pin.likes}
                 </button>
