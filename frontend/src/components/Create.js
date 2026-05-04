@@ -72,7 +72,6 @@ function Create({ token }) {
       {error && <p className="create-error">{error}</p>}
       {success && <p className="create-success">{success}</p>}
 
-      {/* Board form */}
       <div className="create-card">
         <h2>Create a Board</h2>
         <input
@@ -90,7 +89,6 @@ function Create({ token }) {
         <button className="create-btn" onClick={handleCreateBoard}>Create Board</button>
       </div>
 
-      {/* Pin form */}
       <div className="create-card">
         <h2>Create a Pin</h2>
         <input

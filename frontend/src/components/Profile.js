@@ -76,7 +76,6 @@ function Profile({ token, userId }) {
             ))}
           </div>
 
-          {/* Pins grid */}
           {currentBoard && (
             <div className="profile-pins-grid">
               {currentBoard.pins.length === 0 ? (

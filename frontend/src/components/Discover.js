@@ -36,7 +36,6 @@ function Discover({ token }) {
 
   if (loading) return <div className="discover-loading">Loading discoveries...</div>;
 
-  // Grouper les communautés par id
   const communityGroups = {};
   for (const [username, commId] of Object.entries(communities)) {
     if (!communityGroups[commId]) communityGroups[commId] = [];
@@ -46,7 +45,6 @@ function Discover({ token }) {
   return (
     <div className="discover-container">
 
-      {/* Friend suggestions */}
       <div className="discover-card">
         <h2>👥 Friend Suggestions</h2>
         <p className="discover-subtitle">People you might want to follow (BFS)</p>
@@ -64,7 +62,6 @@ function Discover({ token }) {
         )}
       </div>
 
-      {/* Communities */}
       <div className="discover-card">
         <h2>🏘️ Communities (Louvain)</h2>
         <p className="discover-subtitle">Detected interest groups</p>
@@ -80,7 +77,6 @@ function Discover({ token }) {
         ))}
       </div>
 
-      {/* PPR Feed */}
       <div className="discover-card">
         <h2>⭐ Personalized Feed (PPR)</h2>
         <p className="discover-subtitle">Content ranked by PageRank score</p>

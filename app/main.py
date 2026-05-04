@@ -1,35 +1,29 @@
 import time
+import random
 from models import DayfoldGraph, CategoryNode
 from algorithms.bfs_suggest_friends import suggest_friends
 from algorithms.feed import build_feed, anti_scroll_gate
-from algorithms.category_tree import display_hierarchy, find_category
-from algorithms.louvain import louvain
-from algorithms.PPR import PersonalizedPageRank, FeedBuilder, build_topic_teleport_set, build_graph_from_dayfold
+from algorithms.category_tree import display_hierarchy
 from visualizer import Neo4jVisualizer
 
 def run_app():
     net = DayfoldGraph()
 
-    print("Step 1: Building the Category Tree")
+    # STEP 1: CATEGORY HIERARCHY (TREES)
+    print("--- Step 1: Building the Category Tree ---")
     
     root_cat = CategoryNode(0, "All Categories")
 
     cat_decor = CategoryNode(1, "Home Decor")
     cat_scand = CategoryNode(11, "Scandinavian")
-    cat_indus = CategoryNode(12, "Industrial")
     cat_decor.add_child(cat_scand)
-    cat_decor.add_child(cat_indus)
     
     cat_tech = CategoryNode(2, "Technology")
     cat_gaming = CategoryNode(21, "Gaming")
-    cat_office = CategoryNode(22, "Office")
     cat_tech.add_child(cat_gaming)
-    cat_tech.add_child(cat_office)
     
     cat_art = CategoryNode(3, "Art")
-    cat_digital = CategoryNode(31, "Digital Art")
     cat_trad = CategoryNode(32, "Watercolor")
-    cat_art.add_child(cat_digital)
     cat_art.add_child(cat_trad)
     
     root_cat.add_child(cat_decor)
@@ -38,109 +32,59 @@ def run_app():
 
     display_hierarchy(root_cat)
 
-    print("\nStep 2: Creating Users, Boards and Pins")
+    # STEP 2: DATA MODELING (3 USERS)
+    print("\n--- Step 2: Creating 3 Users, Boards and Pins ---")
 
     alice   = net.add_user(1, "Alice")
     bob     = net.add_user(2, "Bob")
     charlie = net.add_user(3, "Charlie")
-    david   = net.add_user(4, "David")
-    emma    = net.add_user(5, "Emma")
-    lucas   = net.add_user(6, "Lucas")
 
-    board_deco = net.add_board_to_user(1, 101, "My Scandinavian Living Room", cat_scand)
-    if board_deco:
-        net.add_pin_to_board(board_deco, 501, "Blue Sofa Photo")
-        net.add_pin_to_board(board_deco, 502, "1950s Vintage Lamp")
+    board_alice = net.add_board_to_user(1, 101, "My Nordic Home", cat_scand)
+    if board_alice:
+        net.add_pin_to_board(board_alice, 501, "White Couch")
+        net.add_pin_to_board(board_alice, 502, "Wooden Lamp")
 
-    board_tech = net.add_board_to_user(2, 102, "Gaming Setup 2024", cat_gaming)
-    if board_tech:
-        net.add_pin_to_board(board_tech, 504, "RTX 4090 Graphics Card")
+    board_bob = net.add_board_to_user(2, 102, "Gaming Setup", cat_gaming)
+    if board_bob:
+        net.add_pin_to_board(board_bob, 504, "Mechanical Keyboard")
 
-    board_deco2 = net.add_board_to_user(3, 103, "Living Room Inspiration", cat_decor)
-    if board_deco2:
-        net.add_pin_to_board(board_deco2, 507, "Berber Rug")
+    board_charlie = net.add_board_to_user(3, 103, "Paintings", cat_trad)
+    if board_charlie:
+        net.add_pin_to_board(board_charlie, 507, "Blue Ocean Watercolor")
 
-    board_tech2 = net.add_board_to_user(4, 104, "Home Office Setup", cat_office)
-    if board_tech2:
-        net.add_pin_to_board(board_tech2, 510, "Electric Standing Desk")
 
-    board_art = net.add_board_to_user(5, 106, "World Watercolors", cat_trad)
-    if board_art:
-        net.add_pin_to_board(board_art, 514, "Japanese Landscape")
+    net.add_friendship(1, 2) 
+    net.add_friendship(2, 3) 
 
-    board_art2 = net.add_board_to_user(6, 108, "Digital Art", cat_digital)
-    if board_art2:
-        net.add_pin_to_board(board_art2, 519, "Cyberpunk Illustration")
+    # STEP 3: FEED ENGINE & ANTI-SCROLL
+    print("\n--- Step 3: Feed Engine for Alice ---")
 
-    # Communauté 1 : Alice, Bob, Charlie
-    net.add_friendship(1, 2)
-    net.add_friendship(2, 1)
-    net.add_friendship(2, 3)
-    net.add_friendship(3, 2)
-
-    # Communauté 2 : Emma, Lucas, David
-    net.add_friendship(5, 6)
-    net.add_friendship(6, 5)
-    net.add_friendship(4, 5)
-    net.add_friendship(5, 4)
-
-    net.add_friendship(1, 5)
-
-    print("\nStep 3: Feed Engine & Anti-scroll Gate")
-
-    user_feed = build_feed(net, 1, daily_limit=10)
+    user_feed = build_feed(net, 1, daily_limit=5)
     print(f"Feed for Alice ({len(user_feed)} pins): {[p.title for p in user_feed]}")
 
-    status_ok = anti_scroll_gate(user_feed, pins_seen=3, daily_limit=10)
-    print(f"Anti-scroll (3 seen)  : {status_ok['message']}")
+    status = anti_scroll_gate(user_feed, pins_seen=2, daily_limit=5)
+    print(f"Anti-scroll status (2/5 seen): {status['message']}")
 
-    status_locked = anti_scroll_gate(user_feed, pins_seen=10, daily_limit=10)
-    print(f"Anti-scroll (10 seen) : {status_locked['message']}")
-
-    print("\nStep 4: Friend Suggestions (BFS)")
+    # STEP 4: RECOMMENDATION ENGINE (BFS)
+    print("\n--- Step 4: Friend Suggestions (BFS) ---")
 
     suggestions = suggest_friends(net, 1)
-    print(f"ALGO RESULT: Suggestions for Alice: {suggestions}")
+    print(f"ALGO RESULT: Recommendations for Alice: {suggestions}")
 
-    print("\nStep 5: Community Detection (Louvain)")
-
-    communities = louvain(net)
-    for user_id, comm_id in communities.items():
-        username = net.users[user_id].username
-        print(f"  {username} -> Community {comm_id}")
-
-    print("\nStep 6: Personalized PageRank Feed")
-
-    ppr_graph = build_graph_from_dayfold(net)
-    ppr = PersonalizedPageRank(ppr_graph)
-    feed_builder = FeedBuilder(ppr_graph, ppr)
-
-    teleport = build_topic_teleport_set(ppr_graph, "1")
-    ppr_feed = feed_builder.build_feed(
-        user_id="1",
-        seen_pins=set(),
-        feed_size=10,
-        teleport_set=teleport
-    )
-
-    print(f"  Followed   : {ppr_feed['followed']}")
-    print(f"  Discovery  : {ppr_feed['discovery']}")
-    print(f"  Serendipity: {ppr_feed['serendipity']}")
-
-    # Neo4j Sync
-    print("\nConnecting to Neo4j for Visualization")
+    # NEO4J SYNCHRONIZATION
+    print("\n--- Syncing to Neo4j for Visualization ---")
     viz = Neo4jVisualizer()
     
-    max_retries = 15
+    max_retries = 5
     for i in range(max_retries):
         try:
-            viz.sync_graph(net, communities=communities)
+            viz.sync_graph(net)
             viz.close()
-            print("Success: Graph synchronized! Check the Neo4j browser.")
+            print("Success: Graph synchronized! View it in the Neo4j browser.")
             break
-        except Exception as e:
-            print(f"Neo4j not ready yet (Trial {i+1}/{max_retries})...")
-            time.sleep(5)
+        except Exception:
+            print(f"Neo4j connection trial {i+1}/{max_retries}...")
+            time.sleep(3)
     else:
         print("Error: Could not connect to Neo4j.")
 
