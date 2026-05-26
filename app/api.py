@@ -1,10 +1,13 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
+import shutil
+import os
 from database import get_connection
 from models import DayfoldGraph
 from algorithms.bfs_suggest_friends import suggest_friends
@@ -12,8 +15,13 @@ from algorithms.feed import build_feed, anti_scroll_gate
 from algorithms.louvain import louvain
 from algorithms.PPR import PersonalizedPageRank, FeedBuilder, build_topic_teleport_set, build_graph_from_dayfold
 
-
 app = FastAPI()
+
+UPLOAD_DIR = "uploads"
+if not os.path.exists(UPLOAD_DIR):
+    os.makedirs(UPLOAD_DIR)
+
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,7 +38,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-
 class UserRegister(BaseModel):
     username: str
     email: str
@@ -39,10 +46,6 @@ class UserRegister(BaseModel):
 class BoardCreate(BaseModel):
     title: str
     category: str
-
-class PinCreate(BaseModel):
-    title: str
-    board_id: int
 
 
 def hash_password(password: str) -> str:
@@ -65,8 +68,6 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         return payload
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
-
-
 
 @app.post("/auth/register")
 def register(user: UserRegister):
@@ -93,32 +94,12 @@ def login(form: OAuth2PasswordRequestForm = Depends()):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return {"access_token": create_token({"user_id": user["id"], "is_admin": user["is_admin"]}), "token_type": "bearer"}
 
-
 @app.get("/users/me")
 def get_me(current_user=Depends(get_current_user)):
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute("SELECT id, username, email, is_admin FROM users WHERE id = %s", (current_user["user_id"],))
         return cur.fetchone()
-
-@app.post("/users/{user_id}/follow")
-def follow_user(user_id: int, current_user=Depends(get_current_user)):
-    conn = get_connection()
-    with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO follows (follower_id, following_id)
-            VALUES (%s, %s) ON CONFLICT DO NOTHING
-        """, (current_user["user_id"], user_id))
-        conn.commit()
-    return {"message": f"Now following user {user_id}"}
-
-@app.get("/users")
-def get_users(current_user=Depends(get_current_user)):
-    conn = get_connection()
-    with conn.cursor() as cur:
-        cur.execute("SELECT id, username, email, is_admin FROM users")
-        return cur.fetchall()
-
 
 @app.post("/boards")
 def create_board(board: BoardCreate, current_user=Depends(get_current_user)):
@@ -139,28 +120,33 @@ def get_boards(current_user=Depends(get_current_user)):
         cur.execute("SELECT * FROM boards WHERE user_id = %s", (current_user["user_id"],))
         return cur.fetchall()
 
-
 @app.post("/pins")
-def create_pin(pin: PinCreate, current_user=Depends(get_current_user)):
+async def create_pin(
+    title: str = Form(...), 
+    board_id: int = Form(...), 
+    file: UploadFile = File(...), 
+    current_user=Depends(get_current_user)
+):
     conn = get_connection()
     with conn.cursor() as cur:
-        cur.execute("SELECT id FROM boards WHERE id = %s AND user_id = %s", (pin.board_id, current_user["user_id"]))
+        cur.execute("SELECT id FROM boards WHERE id = %s AND user_id = %s", (board_id, current_user["user_id"]))
         if not cur.fetchone():
-            raise HTTPException(status_code=403, detail="Board not found or not yours")
+            raise HTTPException(status_code=403, detail="Board introuvable ou ne vous appartient pas")
+        
+        filename = f"{datetime.now().timestamp()}_{file.filename}"
+        file_path = os.path.join(UPLOAD_DIR, filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        image_url = f"/uploads/{filename}"
+
         cur.execute("""
-            INSERT INTO pins (title, board_id)
-            VALUES (%s, %s) RETURNING *
-        """, (pin.title, pin.board_id))
+            INSERT INTO pins (title, board_id, image_url)
+            VALUES (%s, %s, %s) RETURNING *
+        """, (title, board_id, image_url))
         new_pin = cur.fetchone()
         conn.commit()
     return new_pin
-
-@app.get("/pins/{board_id}")
-def get_pins(board_id: int, current_user=Depends(get_current_user)):
-    conn = get_connection()
-    with conn.cursor() as cur:
-        cur.execute("SELECT * FROM pins WHERE board_id = %s", (board_id,))
-        return cur.fetchall()
 
 @app.post("/pins/{pin_id}/like")
 def like_pin(pin_id: int, current_user=Depends(get_current_user)):
@@ -171,52 +157,32 @@ def like_pin(pin_id: int, current_user=Depends(get_current_user)):
         conn.commit()
     return pin
 
-
-
-
 def build_graph_from_postgres(user_id: int) -> DayfoldGraph:
-    """
-    Reconstruit un DayfoldGraph depuis PostgreSQL
-    pour un utilisateur donné et son réseau.
-    """
     conn = get_connection()
     graph = DayfoldGraph()
-
     with conn.cursor() as cur:
-        # Charger tous les utilisateurs
         cur.execute("SELECT id, username FROM users")
         for u in cur.fetchall():
             graph.add_user(u["id"], u["username"])
 
-        # Charger les follows
         cur.execute("SELECT follower_id, following_id FROM follows")
         for f in cur.fetchall():
             graph.add_friendship(f["follower_id"], f["following_id"])
 
-        # Charger les boards
         cur.execute("SELECT id, title, category, user_id FROM boards")
         for b in cur.fetchall():
             graph.add_board_to_user(b["user_id"], b["id"], b["title"], b["category"])
 
-        # Charger les pins
-        cur.execute("SELECT id, title, likes, board_id FROM pins")
+        cur.execute("SELECT id, title, likes, board_id, image_url FROM pins")
         for p in cur.fetchall():
-            # Trouver le bon board
             for uid, user in graph.users.items():
                 for board in user.boards:
                     if board.board_id == p["board_id"]:
-                        graph.add_pin_to_board(board, p["id"], p["title"], p["likes"])
+                        pin_obj = graph.add_pin_to_board(board, p["id"], p["title"], p["likes"])
+                        if hasattr(pin_obj, '__dict__'):
+                            pin_obj.image_url = p["image_url"]
 
     return graph
-
-
-
-@app.get("/algo/suggest-friends")
-def api_suggest_friends(current_user=Depends(get_current_user)):
-    graph = build_graph_from_postgres(current_user["user_id"])
-    suggestions = suggest_friends(graph, current_user["user_id"])
-    return {"suggestions": suggestions}
-
 
 @app.get("/algo/feed")
 def api_feed(current_user=Depends(get_current_user)):
@@ -224,22 +190,30 @@ def api_feed(current_user=Depends(get_current_user)):
     feed = build_feed(graph, current_user["user_id"], daily_limit=10)
     gate = anti_scroll_gate(feed, pins_seen=0, daily_limit=10)
     return {
-        "feed": [{"id": p.pin_id, "title": p.title, "likes": p.likes} for p in gate["pins"]],
+        "feed": [
+            {
+                "id": p.pin_id, 
+                "title": p.title, 
+                "likes": p.likes, 
+                "image_url": getattr(p, 'image_url', None)
+            } for p in gate["pins"]
+        ],
         "message": gate["message"],
         "locked": gate["locked"]
     }
 
+@app.get("/algo/suggest-friends")
+def api_suggest_friends(current_user=Depends(get_current_user)):
+    graph = build_graph_from_postgres(current_user["user_id"])
+    suggestions = suggest_friends(graph, current_user["user_id"])
+    return {"suggestions": suggestions}
 
 @app.get("/algo/communities")
 def api_communities(current_user=Depends(get_current_user)):
     graph = build_graph_from_postgres(current_user["user_id"])
     communities = louvain(graph)
-    result = {}
-    for uid, comm_id in communities.items():
-        username = graph.users[uid].username
-        result[username] = comm_id
+    result = {graph.users[uid].username: comm_id for uid, comm_id in communities.items()}
     return {"communities": result}
-
 
 @app.get("/algo/ppr-feed")
 def api_ppr_feed(current_user=Depends(get_current_user)):
@@ -248,13 +222,7 @@ def api_ppr_feed(current_user=Depends(get_current_user)):
     ppr = PersonalizedPageRank(ppr_graph)
     feed_builder = FeedBuilder(ppr_graph, ppr)
     teleport = build_topic_teleport_set(ppr_graph, str(current_user["user_id"]))
-    ppr_feed = feed_builder.build_feed(
-        user_id=str(current_user["user_id"]),
-        seen_pins=set(),
-        feed_size=10,
-        teleport_set=teleport
-    )
-    return ppr_feed
+    return feed_builder.build_feed(str(current_user["user_id"]), set(), 10, teleport)
 
 @app.get("/users/{user_id}/profile")
 def get_profile(user_id: int, current_user=Depends(get_current_user)):
@@ -262,8 +230,7 @@ def get_profile(user_id: int, current_user=Depends(get_current_user)):
     with conn.cursor() as cur:
         cur.execute("SELECT id, username, email, is_admin FROM users WHERE id = %s", (user_id,))
         user = cur.fetchone()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        if not user: raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
 
         cur.execute("SELECT * FROM boards WHERE user_id = %s", (user_id,))
         boards = cur.fetchall()
@@ -276,7 +243,6 @@ def get_profile(user_id: int, current_user=Depends(get_current_user)):
 
         cur.execute("SELECT COUNT(*) as count FROM follows WHERE following_id = %s", (user_id,))
         followers = cur.fetchone()["count"]
-
         cur.execute("SELECT COUNT(*) as count FROM follows WHERE follower_id = %s", (user_id,))
         following = cur.fetchone()["count"]
 

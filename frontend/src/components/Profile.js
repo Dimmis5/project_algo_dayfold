@@ -10,7 +10,6 @@ function Profile({ token, userId }) {
   const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
-      // On définit les headers ici pour éviter les warnings de dépendances React
       const headers = { Authorization: `Bearer ${token}` };
       const res = await fetch(`${API}/users/${userId}/profile`, { headers });
       const data = await res.json();
@@ -46,9 +45,7 @@ function Profile({ token, userId }) {
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       
-      {/* SECTION HEADER DU PROFIL */}
       <div className="flex flex-col items-center text-center mb-12">
-        {/* Avatar Style Pinterest */}
         <div className="w-32 h-32 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-4xl font-bold text-gray-700 shadow-sm mb-4">
           {profile.user.username[0].toUpperCase()}
         </div>
@@ -62,7 +59,6 @@ function Profile({ token, userId }) {
           )}
         </div>
 
-        {/* Statistiques épurées */}
         <div className="flex items-center gap-6 text-sm font-medium text-gray-600 mt-2">
           <button className="hover:underline">
             <span className="text-gray-900 font-bold">{profile.followers}</span> abonnés
@@ -73,7 +69,6 @@ function Profile({ token, userId }) {
         </div>
       </div>
 
-      {/* NAVIGATION DES TABLEAUX (BOARDS) */}
       {profile.boards.length === 0 ? (
         <div className="bg-gray-50 rounded-[32px] p-16 text-center border-2 border-dashed border-gray-200">
           <p className="text-gray-500 font-medium">Vous n'avez pas encore de tableaux.</p>
@@ -83,7 +78,6 @@ function Profile({ token, userId }) {
         </div>
       ) : (
         <>
-          {/* Onglets des Tableaux */}
           <div className="flex flex-wrap justify-center gap-3 mb-10 border-b border-gray-100 pb-6">
             {profile.boards.map(board => (
               <button
@@ -105,7 +99,6 @@ function Profile({ token, userId }) {
             ))}
           </div>
 
-          {/* GRILLE DES PINS DU TABLEAU SÉLECTIONNÉ */}
           {currentBoard && (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {currentBoard.pins.length === 0 ? (
@@ -115,13 +108,11 @@ function Profile({ token, userId }) {
               ) : (
                 currentBoard.pins.map(pin => (
                   <div key={pin.id} className="group cursor-pointer">
-                    {/* Carte de l'image (Placeholder si pas d'URL) */}
                     <div className="relative aspect-[3/4] w-full rounded-2xl bg-gradient-to-br from-gray-50 to-gray-200 flex items-center justify-center overflow-hidden shadow-sm transition-all duration-300 group-hover:shadow-xl">
                       <span className="text-4xl font-black text-white opacity-40 group-hover:scale-110 transition-transform">
                         {pin.title[0]}
                       </span>
                       
-                      {/* Overlay au survol */}
                       <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-3">
                         <button className="bg-red-600 text-white px-4 py-2 rounded-full font-bold text-xs transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-lg">
                           Enregistrer
@@ -129,7 +120,6 @@ function Profile({ token, userId }) {
                       </div>
                     </div>
                     
-                    {/* Infos sous le Pin */}
                     <div className="mt-2 px-1">
                       <p className="text-sm font-bold text-gray-800 truncate leading-tight">
                         {pin.title}

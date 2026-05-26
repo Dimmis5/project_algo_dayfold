@@ -35,7 +35,6 @@ function Discover({ token }) {
     fetchAll();
   }, [token]);
 
-  // Regroupement des communautés optimisé
   const communityGroups = useMemo(() => {
     const groups = {};
     for (const [username, commId] of Object.entries(communities)) {
@@ -55,7 +54,6 @@ function Discover({ token }) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-10">
       
-      {/* HEADER DE LA PAGE */}
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Exploration Algorithmique</h1>
         <p className="text-gray-500 max-w-xl mx-auto">
@@ -65,7 +63,6 @@ function Discover({ token }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* 1. SUGGESTIONS D'AMIS (BFS) */}
         <section className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold flex items-center gap-2">
@@ -95,7 +92,6 @@ function Discover({ token }) {
           </div>
         </section>
 
-        {/* 2. COMMUNAUTÉS (LOUVAIN) */}
         <section className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold flex items-center gap-2">
@@ -126,7 +122,6 @@ function Discover({ token }) {
           </div>
         </section>
 
-        {/* 3. FLUX PERSONNALISÉ (PAGE RANK) */}
         <section className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold flex items-center gap-2">

@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS pins (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     likes INTEGER DEFAULT 0,
+    image_url TEXT, 
     board_id INTEGER REFERENCES boards(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT NOW()
 );

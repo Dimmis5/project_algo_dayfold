@@ -8,6 +8,8 @@ function Create({ token }) {
   const [pinForm, setPinForm] = useState({ title: '', board_id: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [file, setFile] = useState(null);
+
 
   const fetchBoards = useCallback(async () => {
     try {
@@ -24,7 +26,6 @@ function Create({ token }) {
     fetchBoards();
   }, [fetchBoards]);
 
-  // Petit helper pour afficher les messages temporairement
   const showMessage = (msg, isError = false) => {
     if (isError) setError(msg);
     else setSuccess(msg);
@@ -57,41 +58,40 @@ function Create({ token }) {
     }
   };
 
-  const handleCreatePin = async () => {
-    if (!pinForm.title || !pinForm.board_id) {
-      showMessage('Veuillez remplir tous les champs de l\'épingle', true);
-      return;
-    }
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    };
-    const res = await fetch(`${API}/pins`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ ...pinForm, board_id: parseInt(pinForm.board_id) })
-    });
-    if (res.ok) {
-      setPinForm({ title: '', board_id: '' });
-      showMessage('Épingle ajoutée avec succès !');
-    } else {
-      showMessage('Erreur lors de la création de l\'épingle', true);
-    }
-  };
+const handleCreatePin = async () => {
+  if (!pinForm.title || !pinForm.board_id || !file) {
+    showMessage("Il manque le titre, le tableau ou l'image !", true);
+    return;
+  }
 
-  // Classe CSS commune pour les inputs
+  const formData = new FormData();
+  formData.append('title', pinForm.title);
+  formData.append('board_id', pinForm.board_id);
+  formData.append('file', file);
+
+  const res = await fetch(`${API}/pins`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` }, 
+    body: formData
+  });
+
+  if (res.ok) {
+    setPinForm({ title: '', board_id: '' });
+    setFile(null);
+    showMessage('Épingle publiée !');
+  }
+};
+
   const inputStyle = "w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-red-400 focus:ring-0 outline-none transition-all placeholder:text-gray-400 text-gray-700";
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       
-      {/* HEADER */}
       <div className="mb-12 text-center">
         <h1 className="text-3xl font-extrabold text-gray-900">Nouvelle Création</h1>
         <p className="text-gray-500 mt-2">Donnez vie à vos idées et organisez vos inspirations.</p>
       </div>
 
-      {/* MESSAGES DE NOTIFICATION FLOTTANTS */}
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 space-y-2 w-full max-w-xs md:max-w-sm">
         {error && (
           <div className="bg-red-600 text-white px-6 py-4 rounded-2xl shadow-2xl animate-bounce flex items-center gap-3">
@@ -107,7 +107,6 @@ function Create({ token }) {
 
       <div className="grid md:grid-cols-2 gap-8">
         
-        {/* SECTION TABLEAU (BOARD) */}
         <section className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-shadow duration-500">
           <div className="mb-6">
             <div className="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center text-xl mb-4">📂</div>
@@ -137,7 +136,6 @@ function Create({ token }) {
           </div>
         </section>
 
-        {/* SECTION ÉPINGLE (PIN) */}
         <section className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-shadow duration-500">
           <div className="mb-6">
             <div className="w-12 h-12 bg-red-600 text-white rounded-2xl flex items-center justify-center text-xl mb-4">📌</div>
@@ -167,6 +165,12 @@ function Create({ token }) {
                 ▼
               </div>
             </div>
+            <input 
+  type="file" 
+  accept="image/*"
+  onChange={(e) => setFile(e.target.files[0])}
+  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
+/>
             <button 
               className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-full transition-all active:scale-95 shadow-lg shadow-red-100"
               onClick={handleCreatePin}
@@ -178,7 +182,6 @@ function Create({ token }) {
 
       </div>
 
-      {/* FOOTER INFO */}
       <div className="mt-12 text-center p-6 bg-gray-50 rounded-[24px] border border-gray-100">
         <p className="text-xs text-gray-400 uppercase font-black tracking-widest">Dayfold Engine v2.0</p>
         <p className="text-xs text-gray-400 mt-1">Vos données sont automatiquement injectées dans nos algorithmes de recommandation.</p>

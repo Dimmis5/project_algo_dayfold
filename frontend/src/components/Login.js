@@ -21,7 +21,6 @@ function Login({ onLogin }) {
         onLogin(data.token, data.user.id);
       } else {
         const formData = new FormData();
-        // Note: ton backend semble attendre 'username' pour l'email au login
         formData.append('username', form.email); 
         formData.append('password', form.password);
         
@@ -32,7 +31,6 @@ function Login({ onLogin }) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "Identifiants invalides");
 
-        // Récupération des infos utilisateur
         const meRes = await fetch(`${API}/users/me`, {
           headers: { Authorization: `Bearer ${data.access_token}` }
         });
@@ -48,7 +46,6 @@ function Login({ onLogin }) {
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
       <div className="w-full max-w-md p-10 bg-white rounded-[32px] shadow-2xl border border-gray-100 text-center">
         
-        {/* Logo Dayfold */}
         <h1 className="text-3xl font-bold text-red-600 mb-2 tracking-tighter">Dayfold</h1>
         
         <h2 className="text-2xl font-semibold text-gray-800 mb-2">

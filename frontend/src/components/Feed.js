@@ -49,10 +49,10 @@ function Feed({ token }) {
     </div>
   );
 
-  return (
+return (
     <div className="max-w-[1600px] mx-auto px-2 md:px-8">
       
-      {/* BANNIÈRE ANTI-SCROLL (Concept unique de Dayfold) */}
+      {/* BANNIÈRE ANTI-SCROLL */}
       {antiScrollMessage && (
         <div className="mb-8 p-6 bg-gradient-to-r from-gray-900 to-gray-800 rounded-[24px] text-white shadow-xl relative overflow-hidden group">
           <div className="relative z-10">
@@ -64,7 +64,6 @@ function Feed({ token }) {
               "{antiScrollMessage}"
             </p>
           </div>
-          {/* Décoration d'arrière-plan */}
           <div className="absolute top-[-20px] right-[-20px] w-32 h-32 bg-red-600/10 rounded-full blur-3xl group-hover:bg-red-600/20 transition-all"></div>
         </div>
       )}
@@ -78,25 +77,35 @@ function Feed({ token }) {
           </p>
         </div>
       ) : (
-        /* GRILLE STYLE MASONRY (Pinterest) */
+        /* GRILLE MASONRY */
         <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
           {pins.map(pin => (
             <div 
               key={pin.id} 
               className="break-inside-avoid group cursor-zoom-in relative mb-4"
             >
-              {/* Conteneur Image/Card */}
               <div className="relative rounded-[20px] overflow-hidden bg-gray-100 shadow-sm transition-all duration-300 group-hover:shadow-xl border border-gray-100">
                 
-                {/* Placeholder stylisé (puisque vous n'avez pas encore d'images réelles) */}
-                <div className={`w-full flex items-center justify-center text-white font-black text-5xl bg-gradient-to-br ${getRandomColor()}`} 
-                     style={{ height: getRandomHeight() }}>
-                  <span className="opacity-40 group-hover:scale-110 transition-transform duration-500">
-                    {pin.title[0]}
-                  </span>
-                </div>
+                {/* LOGIQUE D'AFFICHAGE IMAGE OU PLACEHOLDER */}
+                {pin.image_url ? (
+                  <img 
+                    src={pin.image_url.startsWith('http') ? pin.image_url : `${API}${pin.image_url}`}
+                    alt={pin.title}
+                    className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
+                    style={{ minHeight: '150px', maxHeight: '500px' }}
+                    onError={(e) => { e.target.style.display = 'none'; }} // Cache l'image si le lien est mort
+                  />
+                ) : (
+                  /* PLACEHOLDER COLORÉ (si pas d'image) */
+                  <div className={`w-full flex items-center justify-center text-white font-black text-5xl bg-gradient-to-br ${getRandomColor()}`} 
+                       style={{ height: getRandomHeight() }}>
+                    <span className="opacity-40 group-hover:scale-110 transition-transform duration-500">
+                      {pin.title[0]}
+                    </span>
+                  </div>
+                )}
 
-                {/* Overlay au survol (Bouton Save/Like style Pinterest) */}
+                {/* OVERLAY AU SURVOL */}
                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-3 flex flex-col justify-between">
                   <div className="flex justify-end">
                     <button 
@@ -117,7 +126,7 @@ function Feed({ token }) {
                 </div>
               </div>
 
-              {/* Infos sous le Pin */}
+              {/* INFOS SOUS LE PIN */}
               <div className="mt-2 px-1 flex items-start justify-between">
                 <div>
                   <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">
@@ -140,8 +149,6 @@ function Feed({ token }) {
     </div>
   );
 }
-
-// Helpers pour simuler un rendu Pinterest varié avec des placeholders
 const getRandomHeight = () => {
   const heights = ['200px', '280px', '350px', '240px', '400px'];
   return heights[Math.floor(Math.random() * heights.length)];

@@ -30,7 +30,6 @@ function App() {
   return (
     <div className="flex h-screen bg-white font-sans text-gray-900">
       
-      {/* SIDEBAR GAUCHE (Style Pinterest) */}
       <aside className="w-20 flex flex-col items-center py-6 border-r border-gray-100 space-y-8">
         <div className="text-red-600 text-3xl font-bold mb-4 cursor-pointer" onClick={() => setPage('feed')}>D</div>
         
@@ -50,10 +49,8 @@ function App() {
         </div>
       </aside>
 
-      {/* ZONE PRINCIPALE (TopBar + Content) */}
       <div className="flex-1 flex flex-col overflow-hidden">
         
-        {/* TOP BAR AVEC RECHERCHE */}
         <header className="h-20 flex items-center px-8 gap-4">
           <div className="flex-1 relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
@@ -68,7 +65,6 @@ function App() {
           </div>
         </header>
 
-        {/* CONTENU DÉROULANT */}
         <main className="flex-1 overflow-y-auto px-8 pb-10">
           {page === 'feed'     && <Feed     token={token} />}
           {page === 'discover' && <Discover token={token} />}
