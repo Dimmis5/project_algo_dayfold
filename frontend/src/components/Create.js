@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import './Create.css';
 
 const API = 'http://localhost:8000';
 
@@ -10,28 +9,40 @@ function Create({ token }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
-
   const fetchBoards = useCallback(async () => {
-    const res = await fetch(`${API}/boards`, { headers });
-    const data = await res.json();
-    setBoards(data);
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await fetch(`${API}/boards`, { headers });
+      const data = await res.json();
+      setBoards(data);
+    } catch (e) {
+      console.error("Erreur chargement boards:", e);
+    }
   }, [token]);
 
   useEffect(() => {
     fetchBoards();
   }, [fetchBoards]);
 
+  // Petit helper pour afficher les messages temporairement
+  const showMessage = (msg, isError = false) => {
+    if (isError) setError(msg);
+    else setSuccess(msg);
+    setTimeout(() => {
+      setError('');
+      setSuccess('');
+    }, 4000);
+  };
+
   const handleCreateBoard = async () => {
-    setError('');
-    setSuccess('');
     if (!boardForm.title || !boardForm.category) {
-      setError('Please fill in all fields');
+      showMessage('Veuillez remplir tous les champs du tableau', true);
       return;
     }
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
     const res = await fetch(`${API}/boards`, {
       method: 'POST',
       headers,
@@ -39,20 +50,22 @@ function Create({ token }) {
     });
     if (res.ok) {
       setBoardForm({ title: '', category: '' });
-      setSuccess('Board created successfully!');
+      showMessage('Tableau créé avec succès !');
       fetchBoards();
     } else {
-      setError('Error creating board');
+      showMessage('Erreur lors de la création du tableau', true);
     }
   };
 
   const handleCreatePin = async () => {
-    setError('');
-    setSuccess('');
     if (!pinForm.title || !pinForm.board_id) {
-      setError('Please fill in all fields');
+      showMessage('Veuillez remplir tous les champs de l\'épingle', true);
       return;
     }
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
     const res = await fetch(`${API}/pins`, {
       method: 'POST',
       headers,
@@ -60,56 +73,116 @@ function Create({ token }) {
     });
     if (res.ok) {
       setPinForm({ title: '', board_id: '' });
-      setSuccess('Pin created successfully!');
+      showMessage('Épingle ajoutée avec succès !');
     } else {
-      setError('Error creating pin');
+      showMessage('Erreur lors de la création de l\'épingle', true);
     }
   };
 
+  // Classe CSS commune pour les inputs
+  const inputStyle = "w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-red-400 focus:ring-0 outline-none transition-all placeholder:text-gray-400 text-gray-700";
+
   return (
-    <div className="create-container">
-
-      {error && <p className="create-error">{error}</p>}
-      {success && <p className="create-success">{success}</p>}
-
-      <div className="create-card">
-        <h2>Create a Board</h2>
-        <input
-          className="create-input"
-          placeholder="Board title"
-          value={boardForm.title}
-          onChange={e => setBoardForm({ ...boardForm, title: e.target.value })}
-        />
-        <input
-          className="create-input"
-          placeholder="Category (e.g. Décoration, Tech, Art)"
-          value={boardForm.category}
-          onChange={e => setBoardForm({ ...boardForm, category: e.target.value })}
-        />
-        <button className="create-btn" onClick={handleCreateBoard}>Create Board</button>
+    <div className="max-w-4xl mx-auto px-4 py-12">
+      
+      {/* HEADER */}
+      <div className="mb-12 text-center">
+        <h1 className="text-3xl font-extrabold text-gray-900">Nouvelle Création</h1>
+        <p className="text-gray-500 mt-2">Donnez vie à vos idées et organisez vos inspirations.</p>
       </div>
 
-      <div className="create-card">
-        <h2>Create a Pin</h2>
-        <input
-          className="create-input"
-          placeholder="Pin title"
-          value={pinForm.title}
-          onChange={e => setPinForm({ ...pinForm, title: e.target.value })}
-        />
-        <select
-          className="create-input"
-          value={pinForm.board_id}
-          onChange={e => setPinForm({ ...pinForm, board_id: e.target.value })}
-        >
-          <option value="">Select a board</option>
-          {boards.map(b => (
-            <option key={b.id} value={b.id}>{b.title}</option>
-          ))}
-        </select>
-        <button className="create-btn" onClick={handleCreatePin}>Create Pin</button>
+      {/* MESSAGES DE NOTIFICATION FLOTTANTS */}
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 space-y-2 w-full max-w-xs md:max-w-sm">
+        {error && (
+          <div className="bg-red-600 text-white px-6 py-4 rounded-2xl shadow-2xl animate-bounce flex items-center gap-3">
+            <span>⚠️</span> {error}
+          </div>
+        )}
+        {success && (
+          <div className="bg-gray-900 text-white px-6 py-4 rounded-2xl shadow-2xl animate-fadeUp flex items-center gap-3 border border-gray-700">
+            <span className="text-green-400">✓</span> {success}
+          </div>
+        )}
       </div>
 
+      <div className="grid md:grid-cols-2 gap-8">
+        
+        {/* SECTION TABLEAU (BOARD) */}
+        <section className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-shadow duration-500">
+          <div className="mb-6">
+            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center text-xl mb-4">📂</div>
+            <h2 className="text-xl font-bold text-gray-800">Créer un tableau</h2>
+            <p className="text-sm text-gray-500">Regroupez vos épingles par thématique.</p>
+          </div>
+
+          <div className="space-y-4">
+            <input
+              className={inputStyle}
+              placeholder="Nom du tableau (ex: Design Minimaliste)"
+              value={boardForm.title}
+              onChange={e => setBoardForm({ ...boardForm, title: e.target.value })}
+            />
+            <input
+              className={inputStyle}
+              placeholder="Catégorie (Art, Tech, Voyage...)"
+              value={boardForm.category}
+              onChange={e => setBoardForm({ ...boardForm, category: e.target.value })}
+            />
+            <button 
+              className="w-full py-3.5 bg-gray-900 hover:bg-black text-white font-bold rounded-full transition-all active:scale-95 shadow-lg shadow-gray-200"
+              onClick={handleCreateBoard}
+            >
+              Créer le tableau
+            </button>
+          </div>
+        </section>
+
+        {/* SECTION ÉPINGLE (PIN) */}
+        <section className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-shadow duration-500">
+          <div className="mb-6">
+            <div className="w-12 h-12 bg-red-600 text-white rounded-2xl flex items-center justify-center text-xl mb-4">📌</div>
+            <h2 className="text-xl font-bold text-gray-800">Ajouter une épingle</h2>
+            <p className="text-sm text-gray-500">Publiez une nouvelle idée dans un tableau.</p>
+          </div>
+
+          <div className="space-y-4">
+            <input
+              className={inputStyle}
+              placeholder="Titre de l'épingle"
+              value={pinForm.title}
+              onChange={e => setPinForm({ ...pinForm, title: e.target.value })}
+            />
+            <div className="relative">
+              <select
+                className={`${inputStyle} appearance-none cursor-pointer`}
+                value={pinForm.board_id}
+                onChange={e => setPinForm({ ...pinForm, board_id: e.target.value })}
+              >
+                <option value="">Sélectionnez un tableau</option>
+                {boards.map(b => (
+                  <option key={b.id} value={b.id}>{b.title}</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                ▼
+              </div>
+            </div>
+            <button 
+              className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-full transition-all active:scale-95 shadow-lg shadow-red-100"
+              onClick={handleCreatePin}
+            >
+              Publier l'épingle
+            </button>
+          </div>
+        </section>
+
+      </div>
+
+      {/* FOOTER INFO */}
+      <div className="mt-12 text-center p-6 bg-gray-50 rounded-[24px] border border-gray-100">
+        <p className="text-xs text-gray-400 uppercase font-black tracking-widest">Dayfold Engine v2.0</p>
+        <p className="text-xs text-gray-400 mt-1">Vos données sont automatiquement injectées dans nos algorithmes de recommandation.</p>
+      </div>
     </div>
   );
 }
