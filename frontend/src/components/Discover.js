@@ -8,6 +8,16 @@ function Discover({ token }) {
   const [pprFeed, setPprFeed] = useState({ followed: [], discovery: [], serendipity: [] });
   const [loading, setLoading] = useState(true);
 
+  const handleSyncNeo4j = async () => {
+  const res = await fetch(`${API}/algo/sync-graph`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (res.ok) {
+    alert("Graphe synchronisé ! Vous pouvez ouvrir Neo4j Browser.");
+    window.open("http://localhost:7474", "_blank");
+  }
+};
+
   const handleFollow = async (userIdToFollow) => {
     try {
       const res = await fetch(`${API}/users/${userIdToFollow}/follow`, {
@@ -80,6 +90,12 @@ function Discover({ token }) {
           Découvrez les connexions invisibles de votre réseau grâce à nos algorithmes.
         </p>
       </div>
+      <button 
+        onClick={handleSyncNeo4j}
+        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full font-bold shadow-lg transition-all active:scale-95"
+      >
+        Visualiser le Graphe (Neo4j) 📊
+      </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         

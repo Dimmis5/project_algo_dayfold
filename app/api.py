@@ -14,6 +14,7 @@ from algorithms.bfs_suggest_friends import suggest_friends
 from algorithms.feed import build_feed, anti_scroll_gate
 from algorithms.louvain import louvain
 from algorithms.PPR import PersonalizedPageRank, FeedBuilder, build_topic_teleport_set, build_graph_from_dayfold
+from visualizer import Neo4jVisualizer
 
 app = FastAPI()
 
@@ -290,3 +291,17 @@ def search(q: str, current_user=Depends(get_current_user)):
         """, (f"%{q}%", f"%{q}%"))
         results = cur.fetchall()
     return results
+
+@app.get("/algo/sync-graph")
+def sync_neo4j_with_postgres(current_user=Depends(get_current_user)):
+    try:
+        graph = build_graph_from_postgres(current_user["user_id"])
+        
+        viz = Neo4jVisualizer()
+        viz.sync_graph(graph)
+        viz.close()
+        
+        return {"status": "success", "message": "Graphe synchronisé avec succès !"}
+    except Exception as e:
+        print(f"Erreur Synchro Neo4j: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
