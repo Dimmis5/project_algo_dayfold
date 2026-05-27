@@ -206,9 +206,18 @@ def api_feed(current_user=Depends(get_current_user)):
 @app.get("/algo/suggest-friends")
 def api_suggest_friends(current_user=Depends(get_current_user)):
     graph = build_graph_from_postgres(current_user["user_id"])
-    suggestions = suggest_friends(graph, current_user["user_id"])
-    return {"suggestions": suggestions}
-
+    suggested_names = suggest_friends(graph, current_user["user_id"])
+    
+    conn = get_connection()
+    suggestions_with_ids = []
+    with conn.cursor() as cur:
+        for name in suggested_names:
+            cur.execute("SELECT id, username FROM users WHERE username = %s", (name,))
+            u = cur.fetchone()
+            if u:
+                suggestions_with_ids.append(u)
+    
+    return {"suggestions": suggestions_with_ids}
 @app.get("/algo/communities")
 def api_communities(current_user=Depends(get_current_user)):
     graph = build_graph_from_postgres(current_user["user_id"])
@@ -253,3 +262,17 @@ def get_profile(user_id: int, current_user=Depends(get_current_user)):
         "followers": followers,
         "following": following
     }
+
+@app.post("/users/{user_id}/follow")
+def follow_user(user_id: int, current_user=Depends(get_current_user)):
+    conn = get_connection()
+    with conn.cursor() as cur:
+        if user_id == current_user["user_id"]:
+            raise HTTPException(status_code=400, detail="Vous ne pouvez pas vous suivre vous-même")
+            
+        cur.execute("""
+            INSERT INTO follows (follower_id, following_id)
+            VALUES (%s, %s) ON CONFLICT DO NOTHING
+        """, (current_user["user_id"], user_id))
+        conn.commit()
+    return {"message": f"Vous suivez maintenant l'utilisateur {user_id}"}
