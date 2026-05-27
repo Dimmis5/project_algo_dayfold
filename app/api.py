@@ -15,6 +15,7 @@ from algorithms.feed import build_feed, anti_scroll_gate
 from algorithms.louvain import louvain
 from algorithms.PPR import PersonalizedPageRank, FeedBuilder, build_topic_teleport_set, build_graph_from_dayfold
 from visualizer import Neo4jVisualizer
+import random
 
 app = FastAPI()
 
@@ -188,20 +189,45 @@ def build_graph_from_postgres(user_id: int) -> DayfoldGraph:
 
 @app.get("/algo/feed")
 def api_feed(current_user=Depends(get_current_user)):
-    graph = build_graph_from_postgres(current_user["user_id"])
-    feed = build_feed(graph, current_user["user_id"], daily_limit=10)
-    gate = anti_scroll_gate(feed, pins_seen=0, daily_limit=10)
+    user_id = current_user["user_id"]
+    
+    conn = get_connection()
+    feed_final = []
+
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT p.* FROM pins p
+            JOIN boards b ON p.board_id = b.id
+            JOIN follows f ON b.user_id = f.following_id
+            WHERE f.follower_id = %s
+            ORDER BY p.created_at DESC LIMIT 20
+        """, (user_id,))
+        feed_final.extend(cur.fetchall())
+
+        cur.execute("""
+            SELECT p.* FROM pins p
+            JOIN boards b ON p.board_id = b.id
+            WHERE b.category IN (SELECT DISTINCT category FROM boards WHERE user_id = %s)
+            AND b.user_id != %s
+            AND b.user_id NOT IN (SELECT following_id FROM follows WHERE follower_id = %s)
+            ORDER BY p.likes DESC LIMIT 12
+        """, (user_id, user_id, user_id))
+        feed_final.extend(cur.fetchall())
+
+
+        already_in_ids = [p['id'] for p in feed_final] if feed_final else [0]
+        cur.execute("""
+            SELECT * FROM pins 
+            WHERE id != ALL(%s) 
+            ORDER BY RANDOM() LIMIT 10
+        """, (already_in_ids,))
+        feed_final.extend(cur.fetchall())
+
+    random.shuffle(feed_final)
+    
     return {
-        "feed": [
-            {
-                "id": p.pin_id, 
-                "title": p.title, 
-                "likes": p.likes, 
-                "image_url": getattr(p, 'image_url', None)
-            } for p in gate["pins"]
-        ],
-        "message": gate["message"],
-        "locked": gate["locked"]
+        "feed": feed_final,
+        "message": "" 
     }
 
 @app.get("/algo/suggest-friends")

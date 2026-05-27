@@ -52,9 +52,8 @@ function Feed({ token }) {
 return (
     <div className="max-w-[1600px] mx-auto px-2 md:px-8">
       
-      {/* BANNIÈRE ANTI-SCROLL */}
-      {antiScrollMessage && (
-        <div className="mb-8 p-6 bg-gradient-to-r from-gray-900 to-gray-800 rounded-[24px] text-white shadow-xl relative overflow-hidden group">
+{antiScrollMessage && antiScrollMessage !== "" && (
+  <div className="mb-8 p-6 bg-gradient-to-r from-gray-900 to-gray-800 rounded-[24px] text-white shadow-xl relative overflow-hidden group">
           <div className="relative z-10">
             <h3 className="text-xl font-bold mb-1 flex items-center gap-2">
               <span className="text-red-500 text-2xl">✦</span> 
