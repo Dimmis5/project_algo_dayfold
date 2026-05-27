@@ -73,9 +73,10 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 def register(user: UserRegister):
     conn = get_connection()
     with conn.cursor() as cur:
-        cur.execute("SELECT id FROM users WHERE email = %s", (user.email,))
+        cur.execute("SELECT id FROM users WHERE email = %s OR username = %s", (user.email, user.username))
         if cur.fetchone():
-            raise HTTPException(status_code=400, detail="Email already exists")
+            raise HTTPException(status_code=400, detail="L'utilisateur ou l'email existe déjà")
+        
         cur.execute("""
             INSERT INTO users (username, email, password_hash)
             VALUES (%s, %s, %s) RETURNING id, username, email, is_admin
