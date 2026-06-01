@@ -171,7 +171,15 @@ def seed():
                     ("Fjord Norvégien", "https://images.unsplash.com/photo-1531366930477-0f430a78f36c?w=500"),
                     ("Papillon Monarque", "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500"),
                 ]
-            }
+            },
+            {
+    "user": "Bob_Tech", "board": "Art Numérique", "cat": "Art",
+    "pins": [
+        ("Pixel Art", "https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=500"),
+        ("Glitch Art", "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500"),
+        ("NFT Design", "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500"),
+    ]
+},
         ]
 
         for item in content_map:

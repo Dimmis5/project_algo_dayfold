@@ -23,7 +23,7 @@ function Profile({ token, userId }) {
         setSelectedBoard(data.boards[0].id);
       }
     } catch (error) {
-      console.error("Erreur lors de la récupération du profil:", error);
+      console.error("Error fetching profile:", error);
     } finally {
       setLoading(false);
     }
@@ -36,12 +36,12 @@ function Profile({ token, userId }) {
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
-      <p className="mt-4 text-gray-500 font-medium italic">Chargement du profil Dayfold...</p>
+      <p className="mt-4 text-gray-500 font-medium italic">Loading Dayfold profile...</p>
     </div>
   );
 
   if (!profile) return (
-    <div className="text-center py-20 text-gray-500">Utilisateur introuvable.</div>
+    <div className="text-center py-20 text-gray-500">User not found.</div>
   );
 
   const currentBoard = profile.boards.find(b => b.id === selectedBoard);
@@ -65,19 +65,19 @@ function Profile({ token, userId }) {
 
         <div className="flex items-center gap-6 text-sm font-medium text-gray-600 mt-2">
           <button className="hover:underline">
-            <span className="text-gray-900 font-bold">{profile.followers}</span> abonnés
+            <span className="text-gray-900 font-bold">{profile.followers}</span> followers
           </button>
           <button className="hover:underline">
-            <span className="text-gray-900 font-bold">{profile.following}</span> abonnements
+            <span className="text-gray-900 font-bold">{profile.following}</span> following
           </button>
         </div>
       </div>
 
       {profile.boards.length === 0 ? (
         <div className="bg-gray-50 rounded-[32px] p-16 text-center border-2 border-dashed border-gray-200">
-          <p className="text-gray-500 font-medium">Vous n'avez pas encore de tableaux.</p>
+          <p className="text-gray-500 font-medium">You don't have any boards yet.</p>
           <button className="mt-4 text-red-600 font-bold hover:text-red-700 transition-colors">
-            + Créer mon premier tableau
+            + Create my first board
           </button>
         </div>
       ) : (
@@ -107,7 +107,7 @@ function Profile({ token, userId }) {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {currentBoard.pins.length === 0 ? (
                 <div className="col-span-full py-20 text-center bg-gray-50 rounded-[32px]">
-                  <p className="text-gray-400 font-medium italic">Ce tableau est encore vide.</p>
+                  <p className="text-gray-400 font-medium italic">This board is still empty.</p>
                 </div>
               ) : (
                 currentBoard.pins.map(pin => (
@@ -120,7 +120,7 @@ function Profile({ token, userId }) {
                       
                       <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-3">
                         <button className="bg-red-600 text-white px-4 py-2 rounded-full font-bold text-xs transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-lg">
-                          Enregistrer
+                          Save
                         </button>
                       </div>
                     </div>

@@ -10,11 +10,10 @@ function PinDetail({ token }) {
   const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const headers = { Authorization: `Bearer ${token}` };
-
   const fetchPin = useCallback(async () => {
     setLoading(true);
     try {
+      const headers = { Authorization: `Bearer ${token}` };
       const [pinRes, relatedRes] = await Promise.all([
         fetch(`${API}/pins/${id}`, { headers }),
         fetch(`${API}/pins/${id}/related`, { headers }),
@@ -28,13 +27,15 @@ function PinDetail({ token }) {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, token]);
 
   useEffect(() => { fetchPin(); }, [fetchPin]);
 
   const handleLike = async () => {
-    await fetch(`${API}/pins/${id}/like`, { method: 'POST', headers });
-    setPin(prev => ({ ...prev, likes: prev.likes + 1 }));
+    const headers = { Authorization: `Bearer ${token}` }; 
+    const res = await fetch(`${API}/pins/${id}/like`, { method: 'POST', headers });
+    const data = await res.json();
+    setPin(prev => ({ ...prev, likes: data.pin.likes }));
   };
 
   if (loading) return (
@@ -47,14 +48,13 @@ function PinDetail({ token }) {
     </div>
   );
 
-  if (!pin) return <div className="text-center py-20 text-gray-400">Pin introuvable.</div>;
+  if (!pin) return <div className="text-center py-20 text-gray-400">Pin not found.</div>;
 
   const imgSrc = pin.image_url?.startsWith('http') ? pin.image_url : `${API}${pin.image_url}`;
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 py-6">
 
-      {/* Bouton retour */}
       <button
         onClick={() => navigate(-1)}
         className="mb-6 flex items-center gap-2 text-gray-500 hover:text-black transition-colors font-medium text-sm"
@@ -62,13 +62,11 @@ function PinDetail({ token }) {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
-        Retour
+        Back
       </button>
 
-      {/* Carte principale */}
       <div className="bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row max-w-4xl mx-auto mb-16">
 
-        {/* Image gauche */}
         <div className="md:w-1/2 bg-gray-100 flex items-center justify-center min-h-[400px]">
           {pin.image_url ? (
             <img
@@ -84,10 +82,8 @@ function PinDetail({ token }) {
           )}
         </div>
 
-        {/* Infos droite */}
         <div className="md:w-1/2 p-8 flex flex-col justify-between">
           <div>
-            {/* Actions top */}
             <div className="flex items-center justify-between mb-6">
               <button
                 onClick={handleLike}
@@ -97,29 +93,25 @@ function PinDetail({ token }) {
                 <span className="font-bold text-sm">{pin.likes}</span>
               </button>
               <button className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-full font-bold text-sm transition-colors shadow-md">
-                Enregistrer
+                Save
               </button>
             </div>
 
-            {/* Titre */}
             <h1 className="text-2xl font-black text-gray-900 mb-2 leading-tight">{pin.title}</h1>
 
-            {/* Catégorie */}
             {pin.category && (
               <span className="inline-block bg-gray-100 text-gray-600 text-xs font-bold px-3 py-1 rounded-full mb-4">
                 {pin.category}
               </span>
             )}
 
-            {/* Board */}
             {pin.board_title && (
               <p className="text-sm text-gray-500 mb-6">
-                Tableau : <span className="font-semibold text-gray-800">{pin.board_title}</span>
+                Board : <span className="font-semibold text-gray-800">{pin.board_title}</span>
               </p>
             )}
           </div>
 
-          {/* Auteur */}
           {pin.author && (
             <Link
               to={`/profile/${pin.author_id}`}
@@ -130,19 +122,16 @@ function PinDetail({ token }) {
               </div>
               <div>
                 <p className="font-bold text-sm text-gray-900 group-hover:underline">{pin.author}</p>
-                <p className="text-xs text-gray-400">Voir le profil</p>
+                <p className="text-xs text-gray-400">View profile</p>
               </div>
             </Link>
           )}
         </div>
       </div>
 
-      {/* Pins similaires */}
       {related.length > 0 && (
         <div>
-          <h2 className="text-xl font-black text-gray-900 mb-6 text-center">
-            Plus comme ça
-          </h2>
+          <h2 className="text-xl font-black text-gray-900 mb-6 text-center">More like this</h2>
           <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
             {related.map(p => (
               <div
@@ -166,13 +155,13 @@ function PinDetail({ token }) {
                   )}
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-3">
                     <button className="bg-red-600 text-white px-4 py-2 rounded-full font-bold text-xs shadow-lg">
-                      Enregistrer
+                      Save
                     </button>
                   </div>
                 </div>
                 <div className="mt-2 px-1">
                   <p className="text-sm font-semibold text-gray-900 line-clamp-2">{p.title}</p>
-                  {p.author && <p className="text-xs text-gray-400 mt-0.5 italic">Par {p.author}</p>}
+                  {p.author && <p className="text-xs text-gray-400 mt-0.5 italic">By {p.author}</p>}
                 </div>
               </div>
             ))}

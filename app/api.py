@@ -155,10 +155,24 @@ async def create_pin(
 def like_pin(pin_id: int, current_user=Depends(get_current_user)):
     conn = get_connection()
     with conn.cursor() as cur:
-        cur.execute("UPDATE pins SET likes = likes + 1 WHERE id = %s RETURNING *", (pin_id,))
+        cur.execute("SELECT 1 FROM pin_likes WHERE user_id = %s AND pin_id = %s",
+                    (current_user["user_id"], pin_id))
+        already_liked = cur.fetchone()
+
+        if already_liked:
+            cur.execute("DELETE FROM pin_likes WHERE user_id = %s AND pin_id = %s",
+                        (current_user["user_id"], pin_id))
+            cur.execute("UPDATE pins SET likes = GREATEST(likes - 1, 0) WHERE id = %s RETURNING *",
+                        (pin_id,))
+        else:
+            cur.execute("INSERT INTO pin_likes (user_id, pin_id) VALUES (%s, %s)",
+                        (current_user["user_id"], pin_id))
+            cur.execute("UPDATE pins SET likes = likes + 1 WHERE id = %s RETURNING *",
+                        (pin_id,))
+
         pin = cur.fetchone()
         conn.commit()
-    return pin
+    return {"pin": pin, "liked": not already_liked}
 
 def build_graph_from_postgres(user_id: int) -> DayfoldGraph:
     conn = get_connection()
@@ -188,46 +202,88 @@ def build_graph_from_postgres(user_id: int) -> DayfoldGraph:
     return graph
 
 @app.get("/algo/feed")
-def api_feed(current_user=Depends(get_current_user)):
+def api_feed(current_user=Depends(get_current_user), page: int = 1):
     user_id = current_user["user_id"]
-    
+    page_size = 20
+    offset = (page - 1) * page_size
+
+    n_followed = int(page_size * 0.5)
+    n_discovery = int(page_size * 0.3)
+    n_random = page_size - n_followed - n_discovery
+
     conn = get_connection()
-    feed_final = []
 
     with conn.cursor() as cur:
+        # 50% 
         cur.execute("""
-            SELECT p.* FROM pins p
+            SELECT p.*, b.category, u.username as author
+            FROM pins p
             JOIN boards b ON p.board_id = b.id
+            JOIN users u ON b.user_id = u.id
             JOIN follows f ON b.user_id = f.following_id
             WHERE f.follower_id = %s
-            ORDER BY p.created_at DESC LIMIT 20
-        """, (user_id,))
-        feed_final.extend(cur.fetchall())
+            ORDER BY p.created_at DESC
+            LIMIT %s OFFSET %s
+        """, (user_id, n_followed, offset))
+        followed_pins = [dict(p, feed_type="followed") for p in cur.fetchall()]
 
+        # 30% 
+        already_ids = [p['id'] for p in followed_pins] or [0]
         cur.execute("""
-            SELECT p.* FROM pins p
+            SELECT p.*, b.category, u.username as author
+            FROM pins p
             JOIN boards b ON p.board_id = b.id
-            WHERE b.category IN (SELECT DISTINCT category FROM boards WHERE user_id = %s)
+            JOIN users u ON b.user_id = u.id
+            WHERE b.category IN (
+                SELECT DISTINCT category FROM boards WHERE user_id = %s
+            )
             AND b.user_id != %s
             AND b.user_id NOT IN (SELECT following_id FROM follows WHERE follower_id = %s)
-            ORDER BY p.likes DESC LIMIT 12
-        """, (user_id, user_id, user_id))
-        feed_final.extend(cur.fetchall())
+            AND p.id != ALL(%s)
+            ORDER BY p.likes DESC, RANDOM()
+            LIMIT %s OFFSET %s
+        """, (user_id, user_id, user_id, already_ids, n_discovery, offset))
+        discovery_pins = [dict(p, feed_type="discovery") for p in cur.fetchall()]
 
-
-        already_in_ids = [p['id'] for p in feed_final] if feed_final else [0]
+        # 20% 
+        already_ids += [p['id'] for p in discovery_pins]
         cur.execute("""
-            SELECT * FROM pins 
-            WHERE id != ALL(%s) 
-            ORDER BY RANDOM() LIMIT 10
-        """, (already_in_ids,))
-        feed_final.extend(cur.fetchall())
+            SELECT p.*, b.category, u.username as author
+            FROM pins p
+            JOIN boards b ON p.board_id = b.id
+            JOIN users u ON b.user_id = u.id
+            WHERE p.id != ALL(%s)
+            ORDER BY RANDOM()
+            LIMIT %s
+        """, (already_ids, n_random))
+        random_pins = [dict(p, feed_type="random") for p in cur.fetchall()]
 
-    random.shuffle(feed_final)
-    
+        cur.execute("SELECT pin_id FROM pin_likes WHERE user_id = %s", (user_id,))
+        liked_ids = [row["pin_id"] for row in cur.fetchall()]
+
+    feed_final = []
+    buckets = [followed_pins, discovery_pins, random_pins]
+    while any(buckets):
+        for bucket in buckets:
+            if bucket:
+                feed_final.append(bucket.pop(0))
+
+    message = ""
+    if page == 1:
+        messages = [
+            "Crée quelque chose aujourd'hui, même une esquisse.",
+            "L'inspiration vient en faisant, pas en scrollant.",
+            "Et si tu partageais quelque chose à toi ?",
+            "Pause. Respire. Crée.",
+        ]
+        message = random.choice(messages)
+
     return {
         "feed": feed_final,
-        "message": "" 
+        "liked_ids": liked_ids,
+        "message": message,
+        "page": page,
+        "has_more": len(feed_final) == page_size
     }
 
 @app.get("/algo/suggest-friends")

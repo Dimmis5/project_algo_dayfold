@@ -18,7 +18,7 @@ function Create({ token }) {
       const data = await res.json();
       setBoards(data);
     } catch (e) {
-      console.error("Erreur chargement boards:", e);
+      console.error("Error loading boards:", e);
     }
   }, [token]);
 
@@ -37,7 +37,7 @@ function Create({ token }) {
 
   const handleCreateBoard = async () => {
     if (!boardForm.title || !boardForm.category) {
-      showMessage('Veuillez remplir tous les champs du tableau', true);
+      showMessage('Please fill in all the fields in the table', true);
       return;
     }
     const headers = {
@@ -51,16 +51,16 @@ function Create({ token }) {
     });
     if (res.ok) {
       setBoardForm({ title: '', category: '' });
-      showMessage('Tableau créé avec succès !');
+      showMessage('Board created successfully!');
       fetchBoards();
     } else {
-      showMessage('Erreur lors de la création du tableau', true);
+      showMessage('Error creating board', true);
     }
   };
 
 const handleCreatePin = async () => {
   if (!pinForm.title || !pinForm.board_id || !file) {
-    showMessage("Il manque le titre, le tableau ou l'image !", true);
+    showMessage("Title, board, or image is missing!", true);
     return;
   }
 
@@ -78,7 +78,7 @@ const handleCreatePin = async () => {
   if (res.ok) {
     setPinForm({ title: '', board_id: '' });
     setFile(null);
-    showMessage('Épingle publiée !');
+    showMessage('Pin published!');
   }
 };
 
@@ -88,8 +88,8 @@ const handleCreatePin = async () => {
     <div className="max-w-4xl mx-auto px-4 py-12">
       
       <div className="mb-12 text-center">
-        <h1 className="text-3xl font-extrabold text-gray-900">Nouvelle Création</h1>
-        <p className="text-gray-500 mt-2">Donnez vie à vos idées et organisez vos inspirations.</p>
+        <h1 className="text-3xl font-extrabold text-gray-900">New Creation</h1>
+        <p className="text-gray-500 mt-2">Bring your ideas to life and organize your inspirations.</p>
       </div>
 
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 space-y-2 w-full max-w-xs md:max-w-sm">
@@ -110,20 +110,20 @@ const handleCreatePin = async () => {
         <section className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-shadow duration-500">
           <div className="mb-6">
             <div className="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center text-xl mb-4">📂</div>
-            <h2 className="text-xl font-bold text-gray-800">Créer un tableau</h2>
-            <p className="text-sm text-gray-500">Regroupez vos épingles par thématique.</p>
+            <h2 className="text-xl font-bold text-gray-800">Create a board</h2>
+            <p className="text-sm text-gray-500">Group your pins by theme.</p>
           </div>
 
           <div className="space-y-4">
             <input
               className={inputStyle}
-              placeholder="Nom du tableau (ex: Design Minimaliste)"
+              placeholder="Board Name (e.g., Minimalist Design)"
               value={boardForm.title}
               onChange={e => setBoardForm({ ...boardForm, title: e.target.value })}
             />
             <input
               className={inputStyle}
-              placeholder="Catégorie (Art, Tech, Voyage...)"
+              placeholder="Category (Art, Tech, Travel...)"
               value={boardForm.category}
               onChange={e => setBoardForm({ ...boardForm, category: e.target.value })}
             />
@@ -131,7 +131,7 @@ const handleCreatePin = async () => {
               className="w-full py-3.5 bg-gray-900 hover:bg-black text-white font-bold rounded-full transition-all active:scale-95 shadow-lg shadow-gray-200"
               onClick={handleCreateBoard}
             >
-              Créer le tableau
+              Create board
             </button>
           </div>
         </section>
@@ -139,14 +139,14 @@ const handleCreatePin = async () => {
         <section className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl transition-shadow duration-500">
           <div className="mb-6">
             <div className="w-12 h-12 bg-red-600 text-white rounded-2xl flex items-center justify-center text-xl mb-4">📌</div>
-            <h2 className="text-xl font-bold text-gray-800">Ajouter une épingle</h2>
-            <p className="text-sm text-gray-500">Publiez une nouvelle idée dans un tableau.</p>
+            <h2 className="text-xl font-bold text-gray-800">Add a pin</h2>
+            <p className="text-sm text-gray-500">Publish a new idea to a board.</p>
           </div>
 
           <div className="space-y-4">
             <input
               className={inputStyle}
-              placeholder="Titre de l'épingle"
+              placeholder="Pin Title"
               value={pinForm.title}
               onChange={e => setPinForm({ ...pinForm, title: e.target.value })}
             />
@@ -156,7 +156,7 @@ const handleCreatePin = async () => {
                 value={pinForm.board_id}
                 onChange={e => setPinForm({ ...pinForm, board_id: e.target.value })}
               >
-                <option value="">Sélectionnez un tableau</option>
+                <option value="">Select a board</option>
                 {boards.map(b => (
                   <option key={b.id} value={b.id}>{b.title}</option>
                 ))}
@@ -175,7 +175,7 @@ const handleCreatePin = async () => {
               className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-full transition-all active:scale-95 shadow-lg shadow-red-100"
               onClick={handleCreatePin}
             >
-              Publier l'épingle
+              Publish pin
             </button>
           </div>
         </section>
@@ -184,7 +184,7 @@ const handleCreatePin = async () => {
 
       <div className="mt-12 text-center p-6 bg-gray-50 rounded-[24px] border border-gray-100">
         <p className="text-xs text-gray-400 uppercase font-black tracking-widest">Dayfold Engine v2.0</p>
-        <p className="text-xs text-gray-400 mt-1">Vos données sont automatiquement injectées dans nos algorithmes de recommandation.</p>
+        <p className="text-xs text-gray-400 mt-1">Your data is automatically injected into our recommendation algorithms.</p>
       </div>
     </div>
   );

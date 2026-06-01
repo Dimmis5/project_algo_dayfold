@@ -87,7 +87,7 @@ function App() {
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
             <input 
               type="text" 
-              placeholder="Rechercher des idées..." 
+              placeholder="Search for ideas..." 
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={handleSearchSubmit}
