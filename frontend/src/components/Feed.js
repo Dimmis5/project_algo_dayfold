@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 
 const API = 'http://localhost:8000';
 
@@ -6,6 +8,8 @@ function Feed({ token }) {
   const [pins, setPins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [antiScrollMessage, setAntiScrollMessage] = useState('');
+  const navigate = useNavigate();
+
 
   const fetchFeed = useCallback(async () => {
     try {
@@ -52,6 +56,7 @@ function Feed({ token }) {
 return (
     <div className="max-w-[1600px] mx-auto px-2 md:px-8">
       
+      
 {antiScrollMessage && antiScrollMessage !== "" && (
   <div className="mb-8 p-6 bg-gradient-to-r from-gray-900 to-gray-800 rounded-[24px] text-white shadow-xl relative overflow-hidden group">
           <div className="relative z-10">
@@ -80,7 +85,8 @@ return (
         <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
           {pins.map(pin => (
             <div 
-              key={pin.id} 
+              key={pin.id}
+              onClick={() => navigate(`/pin/${pin.id}`)}  
               className="break-inside-avoid group cursor-zoom-in relative mb-4"
             >
               <div className="relative rounded-[20px] overflow-hidden bg-gray-100 shadow-sm transition-all duration-300 group-hover:shadow-xl border border-gray-100">

@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 
 const API = 'http://localhost:8000';
 
@@ -6,6 +8,8 @@ function Profile({ token, userId }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedBoard, setSelectedBoard] = useState(null);
+  const navigate = useNavigate();
+
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -108,6 +112,7 @@ function Profile({ token, userId }) {
               ) : (
                 currentBoard.pins.map(pin => (
                   <div key={pin.id} className="group cursor-pointer">
+                    onClick={() => navigate(`/pin/${pin.id}`)}
                     <div className="relative aspect-[3/4] w-full rounded-2xl bg-gradient-to-br from-gray-50 to-gray-200 flex items-center justify-center overflow-hidden shadow-sm transition-all duration-300 group-hover:shadow-xl">
                       <span className="text-4xl font-black text-white opacity-40 group-hover:scale-110 transition-transform">
                         {pin.title[0]}

@@ -331,3 +331,41 @@ def sync_neo4j_with_postgres(current_user=Depends(get_current_user)):
     except Exception as e:
         print(f"Erreur Synchro Neo4j: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/pins/{pin_id}")
+def get_pin(pin_id: int, current_user=Depends(get_current_user)):
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT p.*, b.title as board_title, b.category, u.id as author_id, u.username as author
+            FROM pins p
+            JOIN boards b ON p.board_id = b.id
+            JOIN users u ON b.user_id = u.id
+            WHERE p.id = %s
+        """, (pin_id,))
+        pin = cur.fetchone()
+        if not pin:
+            raise HTTPException(status_code=404, detail="Pin introuvable")
+    return pin
+
+@app.get("/pins/{pin_id}/related")
+def get_related_pins(pin_id: int, current_user=Depends(get_current_user)):
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute("SELECT category FROM pins p JOIN boards b ON p.board_id = b.id WHERE p.id = %s", (pin_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Pin introuvable")
+        category = row["category"]
+
+        cur.execute("""
+            SELECT p.*, b.category, u.username as author
+            FROM pins p
+            JOIN boards b ON p.board_id = b.id
+            JOIN users u ON b.user_id = u.id
+            WHERE b.category = %s AND p.id != %s
+            ORDER BY RANDOM()
+            LIMIT 20
+        """, (category, pin_id))
+        related = cur.fetchall()
+    return {"related": related}
