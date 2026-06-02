@@ -6,6 +6,7 @@ const API = 'http://localhost:8000';
 function Discover({ token }) {
   const [suggestions, setSuggestions] = useState([]);
   const [communities, setCommunities] = useState({});
+  const [communityNames, setCommunityNames] = useState({});
   const [pprFeed, setPprFeed] = useState({ followed: [], discovery: [], serendipity: [] });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -56,6 +57,7 @@ function Discover({ token }) {
 
         setSuggestions(suggData.suggestions || []);
         setCommunities(commData.communities || {});
+        setCommunityNames(commData.names || {});
         setPprFeed(pprData);
       } catch (e) {
         console.error("Discover error:", e);
@@ -192,7 +194,9 @@ Community calculations are in progress...              </p>
                   <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
                     <span className="text-4xl font-black text-emerald-600">#{commId}</span>
                   </div>
-                  <p className="text-[10px] font-black text-emerald-600 uppercase mb-4 tracking-[0.2em] relative z-10">Circle Alpha</p>
+                  <p className="text-[10px] font-black text-emerald-600 uppercase mb-4 tracking-[0.2em] relative z-10">
+                    {communityNames[commId] || `Community #${commId}`}
+                  </p>
                   <div className="flex flex-wrap gap-2 relative z-10">
                     {members.map((m, i) => (
                       <span key={i} className="px-3 py-1.5 bg-white border border-gray-100 text-gray-700 text-[10px] font-bold rounded-xl shadow-sm">

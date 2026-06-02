@@ -16,6 +16,7 @@ from algorithms.louvain import louvain
 from algorithms.PPR import PersonalizedPageRank, FeedBuilder, build_topic_teleport_set, build_graph_from_dayfold
 from visualizer import Neo4jVisualizer
 import random
+from collections import Counter
 
 app = FastAPI()
 
@@ -305,8 +306,59 @@ def api_suggest_friends(current_user=Depends(get_current_user)):
 def api_communities(current_user=Depends(get_current_user)):
     graph = build_graph_from_postgres(current_user["user_id"])
     communities = louvain(graph)
-    result = {graph.users[uid].username: comm_id for uid, comm_id in communities.items()}
-    return {"communities": result}
+    
+    comm_to_users = {}
+    for uid, comm_id in communities.items():
+        if comm_id not in comm_to_users:
+            comm_to_users[comm_id] = []
+        comm_to_users[comm_id].append(uid)
+    
+    orphans = []
+    final_comm_to_users = {}
+    for comm_id, uids in comm_to_users.items():
+        if len(uids) < 2:
+            orphans.extend(uids)
+        else:
+            final_comm_to_users[comm_id] = uids
+            
+    if orphans:
+        orphan_id = "orphans"
+        final_comm_to_users[orphan_id] = orphans
+
+    comm_names = {}
+    suffixes = ["Lovers", "Squad", "Hub", "Explorers", "Collective", "Addicts", "Club", "Circle"]
+    fallbacks = ["Creative Minds", "Trendsetters", "Rising Stars", "Visionaries", "Dayfold Stars"]
+    
+    for comm_id, uids in final_comm_to_users.items():
+        if comm_id == "orphans":
+            comm_names[comm_id] = "New Explorers"
+            continue
+            
+        categories = []
+        for uid in uids:
+            user = graph.users[uid]
+            for board in user.boards:
+                if board.category:
+                    categories.append(board.category)
+        
+        idx = hash(str(comm_id)) % 100 
+        if categories:
+            most_common = Counter(categories).most_common(1)[0][0]
+            suffix = suffixes[idx % len(suffixes)]
+            comm_names[comm_id] = f"{most_common} {suffix}"
+        else:
+            name_base = fallbacks[idx % len(fallbacks)]
+            comm_names[comm_id] = f"{name_base}"
+
+    result = {}
+    for comm_id, uids in final_comm_to_users.items():
+        for uid in uids:
+            result[graph.users[uid].username] = comm_id
+    
+    return {
+        "communities": result,
+        "names": {str(k): v for k, v in comm_names.items()}
+    }
 
 @app.get("/algo/ppr-feed")
 def api_ppr_feed(current_user=Depends(get_current_user)):
