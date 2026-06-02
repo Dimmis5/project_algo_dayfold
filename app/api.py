@@ -339,11 +339,15 @@ def get_profile(user_id: int, current_user=Depends(get_current_user)):
         cur.execute("SELECT COUNT(*) as count FROM follows WHERE follower_id = %s", (user_id,))
         following = cur.fetchone()["count"]
 
+        cur.execute("SELECT 1 FROM follows WHERE follower_id = %s AND following_id = %s", (current_user["user_id"], user_id))
+        is_following = cur.fetchone() is not None
+
     return {
         "user": dict(user),
         "boards": boards_with_pins,
         "followers": followers,
-        "following": following
+        "following": following,
+        "is_following": is_following
     }
 
 @app.post("/users/{user_id}/follow")

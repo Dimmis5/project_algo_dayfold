@@ -102,7 +102,7 @@ function App() {
             <Route path="/discover" element={<Discover token={token} />} />
             <Route path="/create" element={<Create token={token} />} />
             <Route path="/search" element={<Search token={token} />} />
-            <Route path="/profile/:id" element={<Profile token={token} userId={userId} />} />
+            <Route path="/profile/:id" element={<Profile token={token} currentUserId={userId} />} />
             <Route path="*" element={<Navigate to="/feed" />} />
             <Route path="/pin/:id" element={<PinDetail token={token} />} />
           </Routes>
