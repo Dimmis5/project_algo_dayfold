@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
-from routers import auth, users, boards, pins, algo
+from routers import auth, users, boards, pins, algo, search
 
 app = FastAPI(title="Dayfold API")
 
@@ -26,6 +26,7 @@ app.include_router(users.router)
 app.include_router(boards.router)
 app.include_router(pins.router)
 app.include_router(algo.router)
+app.include_router(search.router)
 
 @app.get("/")
 def read_root():
