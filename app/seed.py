@@ -2,9 +2,11 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from passlib.context import CryptContext
 import os
+import random
 from datetime import datetime
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -14,37 +16,57 @@ def get_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 def seed():
-    print("🚀 Launching 'Grand Format' seed (100 pins)...")
+    print("🚀 Démarrage du seed 'Grand Format' (50 utilisateurs, 100+ pins)...")
     conn = get_connection()
     cur = conn.cursor()
 
     try:
-        print("Cleaning up the database...")
+        print("Nettoyage de la base de données...")
         cur.execute("TRUNCATE users, boards, pins, follows RESTART IDENTITY CASCADE;")
 
-        users_data = [
+        users_to_create = [
             ("Alice_Design", "alice@test.com", "password123"),
             ("Bob_Tech", "bob@test.com", "password123"),
             ("Charlie_Travel", "charlie@test.com", "password123"),
             ("David_Art", "david@test.com", "password123"),
             ("Eve_Nature", "eve@test.com", "password123")
         ]
+
+        themes = ["Gamer", "Chef", "Runner", "Dev", "Artist", "Music", "Traveler", "Photo", "Yoga"]
+        for i in range(1, 46):
+            theme = random.choice(themes)
+            name = f"{theme}_{i:02d}"
+            email = f"user{i}@example.com"
+            users_to_create.append((name, email, "password123"))
+
         user_ids = {}
-        for name, email, pwd in users_data:
-            cur.execute("INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s) RETURNING id",
-                        (name, email, hash_password(pwd)))
+        print(f"Insertion de {len(users_to_create)} utilisateurs...")
+        for name, email, pwd in users_to_create:
+            cur.execute(
+                "INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s) RETURNING id",
+                (name, email, hash_password(pwd))
+            )
             user_ids[name] = cur.fetchone()['id']
 
-        follows = [
-            (user_ids["Alice_Design"], user_ids["Bob_Tech"]),
-            (user_ids["Alice_Design"], user_ids["Charlie_Travel"]),
-            (user_ids["Bob_Tech"], user_ids["Eve_Nature"]),
-            (user_ids["Charlie_Travel"], user_ids["David_Art"]),
-            (user_ids["David_Art"], user_ids["Alice_Design"]),
-            (user_ids["Eve_Nature"], user_ids["Alice_Design"])
+        manual_follows = [
+            ("Alice_Design", "Bob_Tech"),
+            ("Alice_Design", "Charlie_Travel"),
+            ("Bob_Tech", "Eve_Nature"),
+            ("Charlie_Travel", "David_Art"),
+            ("David_Art", "Alice_Design"),
+            ("Eve_Nature", "Alice_Design")
         ]
-        for f, t in follows:
-            cur.execute("INSERT INTO follows (follower_id, following_id) VALUES (%s, %s)", (f, t))
+        
+        for f_name, t_name in manual_follows:
+            cur.execute("INSERT INTO follows (follower_id, following_id) VALUES (%s, %s)", 
+                        (user_ids[f_name], user_ids[t_name]))
+
+        all_user_ids = list(user_ids.values())
+        for _ in range(100):
+            f_id = random.choice(all_user_ids)
+            t_id = random.choice(all_user_ids)
+            if f_id != t_id:
+                cur.execute("INSERT INTO follows (follower_id, following_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (f_id, t_id))
 
         content_map = [
             {
@@ -182,20 +204,21 @@ def seed():
             },
         ]
 
+        print("Insertion des boards et des pins...")
         for item in content_map:
             cur.execute("INSERT INTO boards (title, category, user_id) VALUES (%s, %s, %s) RETURNING id",
                         (item["board"], item["cat"], user_ids[item["user"]]))
             b_id = cur.fetchone()['id']
             for title, url in item["pins"]:
                 cur.execute("INSERT INTO pins (title, image_url, board_id, likes) VALUES (%s, %s, %s, %s)",
-                            (title, url, b_id, 0))
+                            (title, url, b_id, random.randint(0, 50)))
 
         conn.commit()
-        total = sum(len(i['pins']) for i in content_map)
-        print(f"Done! 5 users and {total} pins created.")
+        total_pins = sum(len(i['pins']) for i in content_map)
+        print(f"✅ Terminé ! {len(user_ids)} utilisateurs créés et {total_pins} pins insérés.")
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"❌ Erreur : {e}")
         conn.rollback()
     finally:
         cur.close()
