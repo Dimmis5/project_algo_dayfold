@@ -162,13 +162,27 @@ function Profile({ token, currentUserId }) {
               ) : (
                 currentBoard.pins.map(pin => (
                   <div key={pin.id} className="group cursor-pointer" onClick={() => navigate(`/pin/${pin.id}`)}>
-                    <div className="relative aspect-[3/4] w-full rounded-2xl bg-gradient-to-br from-gray-50 to-gray-200 flex items-center justify-center overflow-hidden shadow-sm transition-all duration-300 group-hover:shadow-xl">
-                      <span className="text-4xl font-black text-white opacity-40 group-hover:scale-110 transition-transform">
-                        {pin.title[0]}
-                      </span>
+                    <div className="relative aspect-[3/4] w-full rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm transition-all duration-300 group-hover:shadow-xl">
+                      {pin.image_url ? (
+                        <img 
+                          src={pin.image_url.startsWith('http') ? pin.image_url : `${API}/uploads/${pin.image_url}`} 
+                          alt={pin.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <span className="text-4xl font-black text-gray-300 opacity-40 group-hover:scale-110 transition-transform">
+                          {pin.title[0]}
+                        </span>
+                      )}
                       
                       <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-3">
-                        <button className="bg-red-600 text-white px-4 py-2 rounded-full font-bold text-xs transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-lg">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // logic for save could be added here
+                          }}
+                          className="bg-red-600 text-white px-4 py-2 rounded-full font-bold text-xs transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-lg"
+                        >
                           Save
                         </button>
                       </div>
