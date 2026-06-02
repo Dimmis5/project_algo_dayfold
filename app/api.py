@@ -315,7 +315,32 @@ def api_ppr_feed(current_user=Depends(get_current_user)):
     ppr = PersonalizedPageRank(ppr_graph)
     feed_builder = FeedBuilder(ppr_graph, ppr)
     teleport = build_topic_teleport_set(ppr_graph, str(current_user["user_id"]))
-    return feed_builder.build_feed(str(current_user["user_id"]), set(), 10, teleport)
+    raw_feed = feed_builder.build_feed(str(current_user["user_id"]), set(), 10, teleport)
+
+    # Fetch full pin details for each bucket
+    conn = get_connection()
+    detailed_feed = {}
+    with conn.cursor() as cur:
+        for bucket, pin_ids in raw_feed.items():
+            if not pin_ids:
+                detailed_feed[bucket] = []
+                continue
+            
+            # Convert string IDs back to integers
+            int_ids = [int(pid) for pid in pin_ids]
+            
+            cur.execute("""
+                SELECT p.*, b.title as board_title, u.username as author, u.id as author_id
+                FROM pins p
+                JOIN boards b ON p.board_id = b.id
+                JOIN users u ON b.user_id = u.id
+                WHERE p.id = ANY(%s)
+            """, (int_ids,))
+            pins = {p["id"]: dict(p) for p in cur.fetchall()}
+            # Reorder pins according to PPR ranking
+            detailed_feed[bucket] = [pins[pid] for pid in int_ids if pid in pins]
+
+    return detailed_feed
 
 @app.get("/users/{user_id}/profile")
 def get_profile(user_id: int, current_user=Depends(get_current_user)):
