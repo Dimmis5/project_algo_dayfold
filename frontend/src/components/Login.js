@@ -17,7 +17,7 @@ function Login({ onLogin }) {
           body: JSON.stringify(form)
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Erreur lors de l'inscription");
+        if (!res.ok) throw new Error(data.detail || "Error during registration");
         onLogin(data.token, data.user.id);
       } else {
         const formData = new FormData();
@@ -29,7 +29,7 @@ function Login({ onLogin }) {
           body: formData
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Identifiants invalides");
+        if (!res.ok) throw new Error(data.detail || "Invalid credentials");
 
         const meRes = await fetch(`${API}/users/me`, {
           headers: { Authorization: `Bearer ${data.access_token}` }
@@ -49,18 +49,18 @@ function Login({ onLogin }) {
         <h1 className="text-3xl font-bold text-red-600 mb-2 tracking-tighter">Dayfold</h1>
         
         <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-          {isRegister ? 'Créez votre compte' : 'Bon retour parmi nous'}
+          {isRegister ? 'Create your account' : 'Welcome back'}
         </h2>
         
         <p className="text-gray-500 mb-8">
-          {isRegister ? 'Rejoignez la communauté Dayfold' : 'Connectez-vous pour explorer'}
+          {isRegister ? 'Join the Dayfold community' : 'Log in to explore'}
         </p>
 
         <div className="space-y-3">
           {isRegister && (
             <input
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:border-red-400 focus:ring-0 outline-none transition-all placeholder:text-gray-400"
-              placeholder="Nom d'utilisateur"
+              placeholder="Username"
               value={form.username}
               onChange={e => setForm({ ...form, username: e.target.value })}
             />
@@ -76,7 +76,7 @@ function Login({ onLogin }) {
           
           <input
             className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:border-red-400 focus:ring-0 outline-none transition-all placeholder:text-gray-400"
-            placeholder="Mot de passe"
+            placeholder="Password"
             type="password"
             value={form.password}
             onChange={e => setForm({ ...form, password: e.target.value })}
@@ -93,17 +93,17 @@ function Login({ onLogin }) {
           className="w-full py-3 mt-8 bg-red-600 hover:bg-red-700 text-white font-bold rounded-full text-lg transition-colors shadow-lg shadow-red-200"
           onClick={handleSubmit}
         >
-          {isRegister ? "S'inscrire" : 'Se connecter'}
+          {isRegister ? "Register" : 'Log In'}
         </button>
 
         <div className="mt-8 pt-6 border-t border-gray-100">
           <p className="text-gray-600 text-sm">
-            {isRegister ? 'Déjà membre ?' : 'Pas encore de compte ?'}
+            {isRegister ? 'Already a member?' : 'No account yet?'}
             <button 
               className="ml-2 font-bold text-gray-800 hover:underline"
               onClick={() => setIsRegister(!isRegister)}
             >
-              {isRegister ? 'Connectez-vous' : 'Inscrivez-vous'}
+              {isRegister ? 'Log In' : 'Register'}
             </button>
           </p>
         </div>

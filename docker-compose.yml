@@ -53,6 +53,21 @@ services:
       - PYTHONUNBUFFERED=1
       - DEV_MODE=true
 
+  seed:
+    build: .
+    container_name: seed-dayfold
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    volumes:
+      - ./app:/app
+    environment:
+      - POSTGRES_URI=postgresql://postgres:password123@postgres:5432/dayfold
+    command: ["python", "seed.py"]
+    restart: "no"
+
   frontend:
     build: ./frontend
     container_name: react-dayfold
@@ -61,12 +76,12 @@ services:
     depends_on:
       - app
     volumes:
-      - ./frontend:/app           # LIE TON CODE LOCAL AU CONTAINER
-      - /app/node_modules         # NE PAS TOUCHER AUX MODULES DU CONTAINER
+      - ./frontend:/app          
+      - /app/node_modules         
     environment:
       - REACT_APP_API_URL=http://localhost:8000
-      - CHOKIDAR_USEPOLLING=true  # FORCE REACT A VOIR TES CHANGEMENTS
-    stdin_open: true              # INTERACTIF
+      - CHOKIDAR_USEPOLLING=true 
+    stdin_open: true              
 
 volumes:
   neo4j_data:

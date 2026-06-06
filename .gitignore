@@ -45,3 +45,4 @@ dev.log
 .env
 
 __pycache__/
+api.py.bak
