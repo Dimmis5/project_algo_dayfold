@@ -19,8 +19,17 @@ class Neo4jVisualizer:
             for u_id, user in dayfold_graph.users.items():
                 community_id = communities[u_id] if communities and u_id in communities else -1
                 session.run(
-                    "MERGE (u:User {id: $id, name: $name, community: $community})",
-                    id=user.user_id, name=user.username, community=community_id
+                    """
+                    MERGE (u:User {id: $id})
+                    SET u.username = $username,
+                        u.name = $username,
+                        u.email = $email,
+                        u.community = $community
+                    """,
+                    id=str(user.user_id),
+                    username=user.username,
+                    email=getattr(user, "email", None),
+                    community=community_id,
                 )
 
             # Boards et Pins
@@ -28,14 +37,41 @@ class Neo4jVisualizer:
                 for board in user.boards:
                     category_name = board.category.name if hasattr(board.category, 'name') else str(board.category)
                     session.run(
-                        "CREATE (b:Board {id: $bid, title: $title, category: $category})",
-                        bid=board.board_id, title=board.title, category=category_name
+                        """
+                        MERGE (b:Board {id: $bid})
+                        SET b.title = $title,
+                            b.name = $title,
+                            b.category = $category,
+                            b.user_id = $uid
+                        """,
+                        bid=str(board.board_id),
+                        title=board.title,
+                        category=category_name,
+                        uid=str(user.user_id),
                     )
 
                     for pin in board.pins:
+                        pin_category = pin.category.name if hasattr(pin.category, 'name') else (
+                            str(pin.category) if pin.category is not None else category_name
+                        )
                         session.run(
-                            "CREATE (p:Pin {id: $pid, title: $ptitle})",
-                            pid=pin.pin_id, ptitle=pin.title
+                            """
+                            MERGE (p:Pin {id: $pid})
+                            SET p.title = $ptitle,
+                                p.name = $ptitle,
+                                p.description = $description,
+                                p.image_url = $image_url,
+                                p.category = $category,
+                                p.creator_id = $creator_id,
+                                p.likes = $likes
+                            """,
+                            pid=str(pin.pin_id),
+                            ptitle=pin.title,
+                            description=getattr(pin, "description", ""),
+                            image_url=getattr(pin, "image_url", ""),
+                            category=pin_category,
+                            creator_id=str(getattr(pin, "creator_id", user.user_id)),
+                            likes=getattr(pin, "likes", 0),
                         )
 
             # Relations
@@ -44,16 +80,40 @@ class Neo4jVisualizer:
                     session.run("""
                         MATCH (a:User {id: $aid}), (b:User {id: $bid})
                         MERGE (a)-[:FOLLOWS]->(b)
-                    """, aid=user.user_id, bid=followed.user_id)
+                    """, aid=str(user.user_id), bid=str(followed.user_id))
 
                 for board in user.boards:
                     session.run("""
                         MATCH (u:User {id: $uid}), (b:Board {id: $bid})
+                        MERGE (u)-[:CREATED]->(b)
                         MERGE (u)-[:OWNS]->(b)
-                    """, uid=user.user_id, bid=board.board_id)
+                    """, uid=str(user.user_id), bid=str(board.board_id))
 
                     for pin in board.pins:
                         session.run("""
                             MATCH (b:Board {id: $bid}), (p:Pin {id: $pid})
                             MERGE (b)-[:CONTAINS]->(p)
-                        """, bid=board.board_id, pid=pin.pin_id)
+                        """, bid=str(board.board_id), pid=str(pin.pin_id))
+
+                        session.run("""
+                            MATCH (u:User {id: $uid}), (p:Pin {id: $pid})
+                            MERGE (u)-[:CREATED]->(p)
+                        """, uid=str(user.user_id), pid=str(pin.pin_id))
+
+                        for liked_user_id in getattr(pin, "liked_by", set()):
+                            session.run("""
+                                MATCH (u:User {id: $uid}), (p:Pin {id: $pid})
+                                MERGE (u)-[:LIKED]->(p)
+                            """, uid=str(liked_user_id), pid=str(pin.pin_id))
+
+                        for saved_user_id in getattr(pin, "saved_by", set()):
+                            session.run("""
+                                MATCH (u:User {id: $uid}), (p:Pin {id: $pid})
+                                MERGE (u)-[:SAVED]->(p)
+                            """, uid=str(saved_user_id), pid=str(pin.pin_id))
+
+                        for shared_user_id in getattr(pin, "shared_by", set()):
+                            session.run("""
+                                MATCH (u:User {id: $uid}), (p:Pin {id: $pid})
+                                MERGE (u)-[:SHARED]->(p)
+                            """, uid=str(shared_user_id), pid=str(pin.pin_id))

@@ -1,17 +1,50 @@
+import networkx as nx
+
 from models import DayfoldGraph
 
 
-def build_interaction_weights(graph: DayfoldGraph) -> dict:
-    weights = {}
+def build_interaction_weights(graph: DayfoldGraph) -> nx.Graph:
+    interaction_graph = nx.Graph()
+
+    for user_id, user in graph.users.items():
+        interaction_graph.add_node(
+            user_id,
+            username=user.username,
+            name=user.name,
+            email=user.email,
+        )
+
+    def add_weight(u1, u2, weight):
+        if u1 == u2:
+            return
+        if interaction_graph.has_edge(u1, u2):
+            interaction_graph[u1][u2]["weight"] += weight
+        else:
+            interaction_graph.add_edge(u1, u2, weight=weight)
 
     for user_id, user in graph.users.items():
         for followed in user.following:
-            u1 = min(user_id, followed.user_id)
-            u2 = max(user_id, followed.user_id)
-            key = (u1, u2)
-            weights[key] = weights.get(key, 0) + 5
+            add_weight(user_id, followed.user_id, 5)
 
-    return weights
+        for pin_id in getattr(user, "liked_pins", set()):
+            pin = graph.find_pin(pin_id)
+            if pin:
+                for other_user_id in pin.liked_by:
+                    add_weight(user_id, other_user_id, 2)
+
+        for pin_id in getattr(user, "saved_pins", set()):
+            pin = graph.find_pin(pin_id)
+            if pin:
+                for other_user_id in pin.saved_by:
+                    add_weight(user_id, other_user_id, 3)
+
+        for pin_id in getattr(user, "shared_pins", set()):
+            pin = graph.find_pin(pin_id)
+            if pin:
+                for other_user_id in pin.shared_by:
+                    add_weight(user_id, other_user_id, 4)
+
+    return interaction_graph
 
 
 def _compute_modularity(communities: dict, weights: dict, total_weight: float) -> float:
@@ -38,16 +71,16 @@ def _compute_modularity(communities: dict, weights: dict, total_weight: float) -
 
 def louvain(graph: DayfoldGraph) -> dict:
 
-    weights = build_interaction_weights(graph)
-    total_weight = sum(weights.values())
-
+    interaction_graph = build_interaction_weights(graph)
+    total_weight = interaction_graph.size(weight="weight")
+    
     if total_weight == 0:
         return {uid: uid for uid in graph.users}
 
     partition = {uid: uid for uid in graph.users}
 
     neighbors = {uid: set() for uid in graph.users}
-    for (u1, u2) in weights:
+    for u1, u2 in interaction_graph.edges():
         neighbors[u1].add(u2)
         neighbors[u2].add(u1)
 
@@ -61,8 +94,7 @@ def louvain(graph: DayfoldGraph) -> dict:
             comm_weights = {}
             for neigh in neighbors.get(user_id, set()):
                 neigh_comm = partition[neigh]
-                key = (min(user_id, neigh), max(user_id, neigh))
-                w = weights.get(key, 0)
+                w = interaction_graph[user_id][neigh].get("weight", 1)
                 comm_weights[neigh_comm] = comm_weights.get(neigh_comm, 0) + w
 
             if not comm_weights:
