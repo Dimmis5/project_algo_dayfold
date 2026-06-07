@@ -74,13 +74,11 @@ def run_app():
     if board_art2:
         net.add_pin_to_board(board_art2, 519, "Cyberpunk Illustration")
 
-    # Communauté 1 : Alice, Bob, Charlie
     net.add_friendship(1, 2)
     net.add_friendship(2, 1)
     net.add_friendship(2, 3)
     net.add_friendship(3, 2)
 
-    # Communauté 2 : Emma, Lucas, David
     net.add_friendship(5, 6)
     net.add_friendship(6, 5)
     net.add_friendship(4, 5)
@@ -88,7 +86,6 @@ def run_app():
 
     net.add_friendship(1, 5)
 
-    # Interactions utilisateur compatibles avec Neo4j et Louvain
     net.like_pin(1, 501)
     net.like_pin(2, 501)
     net.save_pin(3, 501)
@@ -170,7 +167,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
-from routers import auth, users, boards, pins, algo, search
+from routers import auth, users, boards, pins, algo, search, complexity
 
 app = FastAPI(title="Dayfold API")
 
@@ -188,13 +185,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Routers
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(boards.router)
 app.include_router(pins.router)
 app.include_router(algo.router)
 app.include_router(search.router)
+app.include_router(complexity.router)
 
 @app.get("/")
 def read_root():

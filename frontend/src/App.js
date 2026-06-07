@@ -7,10 +7,10 @@ import Discover from './components/Discover';
 import Profile from './components/Profile';
 import Search from './components/Search'; 
 import PinDetail from './components/PinDetail';
-
-
+import Complexity from './components/Complexity';
 
 function App() {
+
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [userId, setUserId] = useState(localStorage.getItem('userId'));
   const [searchInput, setSearchInput] = useState('');
@@ -67,6 +67,12 @@ function App() {
               <line x1="8" y1="12" x2="16" y2="12"/>
             </svg>
           </NavLink>
+
+          <NavLink to="/complexity" className={({ isActive }) => isActive ? "text-red-500" : "hover:text-red-500"}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </NavLink>
         </nav>
 
         <div className="mt-auto pb-4 flex flex-col gap-6 items-center">
@@ -102,6 +108,7 @@ function App() {
             <Route path="/discover" element={<Discover token={token} />} />
             <Route path="/create" element={<Create token={token} />} />
             <Route path="/search" element={<Search token={token} />} />
+            <Route path="/complexity" element={<Complexity token={token} />} />
             <Route path="/profile/:id" element={<Profile token={token} currentUserId={userId} />} />
             <Route path="*" element={<Navigate to="/feed" />} />
             <Route path="/pin/:id" element={<PinDetail token={token} />} />
