@@ -11,6 +11,65 @@ from collections import Counter
 
 router = APIRouter(prefix="/algo", tags=["algo"])
 
+
+def build_community_payload(current_user):
+    graph = build_graph_from_postgres(current_user["user_id"])
+    communities = louvain(graph)
+
+    comm_to_users = {}
+    for uid, comm_id in communities.items():
+        if comm_id not in comm_to_users:
+            comm_to_users[comm_id] = []
+        comm_to_users[comm_id].append(uid)
+
+    orphans = []
+    final_comm_to_users = {}
+    for comm_id, uids in comm_to_users.items():
+        if len(uids) < 2:
+            orphans.extend(uids)
+        else:
+            final_comm_to_users[str(comm_id)] = uids
+
+    if orphans:
+        final_comm_to_users["orphans"] = orphans
+
+    comm_names = {}
+    suffixes = ["Lovers", "Squad", "Hub", "Explorers", "Collective", "Addicts", "Club", "Circle"]
+    fallbacks = ["Creative Minds", "Trendsetters", "Rising Stars", "Visionaries", "Dayfold Stars"]
+
+    for comm_id, uids in final_comm_to_users.items():
+        if comm_id == "orphans":
+            comm_names[comm_id] = "New Explorers"
+            continue
+
+        categories = []
+        for uid in uids:
+            user = graph.users[uid]
+            for board in user.boards:
+                if board.category:
+                    categories.append(board.category)
+
+        idx = hash(str(comm_id)) % 100
+        if categories:
+            most_common = Counter(categories).most_common(1)[0][0]
+            suffix = suffixes[idx % len(suffixes)]
+            comm_names[comm_id] = f"{most_common} {suffix}"
+        else:
+            name_base = fallbacks[idx % len(fallbacks)]
+            comm_names[comm_id] = f"{name_base}"
+
+    result = {}
+    for comm_id, uids in final_comm_to_users.items():
+        for uid in uids:
+            result[graph.users[uid].username] = comm_id
+
+    return {
+        "graph": graph,
+        "communities": result,
+        "names": comm_names,
+        "community_users": final_comm_to_users,
+    }
+
 @router.get("/feed")
 def api_feed(current_user=Depends(get_current_user), page: int = 1):
     user_id = current_user["user_id"]
@@ -38,7 +97,7 @@ def api_feed(current_user=Depends(get_current_user), page: int = 1):
         followed_pins = [dict(p, feed_type="followed") for p in cur.fetchall()]
 
         # 30% 
-        already_ids = [p['id'] for p in followed_pins] or [0]
+        already_ids = [str(p['id']) for p in followed_pins]
         cur.execute("""
             SELECT p.*, b.category, u.username as author
             FROM pins p
@@ -49,20 +108,20 @@ def api_feed(current_user=Depends(get_current_user), page: int = 1):
             )
             AND b.user_id != %s
             AND b.user_id NOT IN (SELECT following_id FROM follows WHERE follower_id = %s)
-            AND p.id != ALL(%s)
+            AND NOT (p.id = ANY(%s::uuid[]))
             ORDER BY p.likes DESC, RANDOM()
             LIMIT %s OFFSET %s
         """, (user_id, user_id, user_id, already_ids, n_discovery, offset))
         discovery_pins = [dict(p, feed_type="discovery") for p in cur.fetchall()]
 
         # 20% 
-        already_ids += [p['id'] for p in discovery_pins]
+        already_ids += [str(p['id']) for p in discovery_pins]
         cur.execute("""
             SELECT p.*, b.category, u.username as author
             FROM pins p
             JOIN boards b ON p.board_id = b.id
             JOIN users u ON b.user_id = u.id
-            WHERE p.id != ALL(%s)
+            WHERE NOT (p.id = ANY(%s::uuid[]))
             ORDER BY RANDOM()
             LIMIT %s
         """, (already_ids, n_random))
@@ -105,7 +164,7 @@ def api_suggest_friends(current_user=Depends(get_current_user)):
     suggestions_with_ids = []
     with conn.cursor() as cur:
         for name in suggested_names:
-            cur.execute("SELECT id, username FROM users WHERE username = %s", (name,))
+            cur.execute("SELECT id::text AS id, username, email FROM users WHERE username = %s", (name,))
             u = cur.fetchone()
             if u:
                 suggestions_with_ids.append(u)
@@ -114,95 +173,110 @@ def api_suggest_friends(current_user=Depends(get_current_user)):
 
 @router.get("/communities")
 def api_communities(current_user=Depends(get_current_user)):
-    graph = build_graph_from_postgres(current_user["user_id"])
-    communities = louvain(graph)
-    
-    comm_to_users = {}
-    for uid, comm_id in communities.items():
-        if comm_id not in comm_to_users:
-            comm_to_users[comm_id] = []
-        comm_to_users[comm_id].append(uid)
-    
-    orphans = []
-    final_comm_to_users = {}
-    for comm_id, uids in comm_to_users.items():
-        if len(uids) < 2:
-            orphans.extend(uids)
-        else:
-            final_comm_to_users[comm_id] = uids
-            
-    if orphans:
-        orphan_id = "orphans"
-        final_comm_to_users[orphan_id] = orphans
-
-    comm_names = {}
-    suffixes = ["Lovers", "Squad", "Hub", "Explorers", "Collective", "Addicts", "Club", "Circle"]
-    fallbacks = ["Creative Minds", "Trendsetters", "Rising Stars", "Visionaries", "Dayfold Stars"]
-    
-    for comm_id, uids in final_comm_to_users.items():
-        if comm_id == "orphans":
-            comm_names[comm_id] = "New Explorers"
-            continue
-            
-        categories = []
-        for uid in uids:
-            user = graph.users[uid]
-            for board in user.boards:
-                if board.category:
-                    categories.append(board.category)
-        
-        idx = hash(str(comm_id)) % 100 
-        if categories:
-            most_common = Counter(categories).most_common(1)[0][0]
-            suffix = suffixes[idx % len(suffixes)]
-            comm_names[comm_id] = f"{most_common} {suffix}"
-        else:
-            name_base = fallbacks[idx % len(fallbacks)]
-            comm_names[comm_id] = f"{name_base}"
-
-    result = {}
-    for comm_id, uids in final_comm_to_users.items():
-        for uid in uids:
-            result[graph.users[uid].username] = comm_id
-    
+    payload = build_community_payload(current_user)
     return {
-        "communities": result,
-        "names": {str(k): v for k, v in comm_names.items()}
+        "communities": payload["communities"],
+        "names": payload["names"],
+    }
+
+
+@router.get("/communities/{community_id}/pins")
+def api_community_pins(community_id: str, current_user=Depends(get_current_user)):
+    payload = build_community_payload(current_user)
+    user_ids = payload["community_users"].get(community_id)
+    if not user_ids:
+        raise HTTPException(status_code=404, detail="Community not found")
+
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id::text AS id, username, email
+            FROM users
+            WHERE id = ANY(%s::uuid[])
+            ORDER BY username
+            """,
+            (user_ids,),
+        )
+        members = cur.fetchall()
+
+        cur.execute(
+            """
+            SELECT
+                p.*,
+                p.id::text AS id,
+                b.title AS board_title,
+                b.category,
+                u.username AS author,
+                u.id::text AS author_id
+            FROM pins p
+            JOIN boards b ON p.board_id = b.id
+            JOIN users u ON b.user_id = u.id
+            WHERE b.user_id = ANY(%s::uuid[])
+            ORDER BY p.created_at DESC
+            """,
+            (user_ids,),
+        )
+        pins = cur.fetchall()
+
+        cur.execute("SELECT pin_id::text AS pin_id FROM pin_likes WHERE user_id = %s", (current_user["user_id"],))
+        liked_ids = [row["pin_id"] for row in cur.fetchall()]
+
+        cur.execute("SELECT pin_id::text AS pin_id FROM pin_saves WHERE user_id = %s", (current_user["user_id"],))
+        saved_ids = [row["pin_id"] for row in cur.fetchall()]
+
+    return {
+        "id": community_id,
+        "name": payload["names"].get(community_id, f"Community #{community_id}"),
+        "members": members,
+        "pins": pins,
+        "liked_ids": liked_ids,
+        "saved_ids": saved_ids,
     }
 
 @router.get("/ppr-feed")
 def api_ppr_feed(current_user=Depends(get_current_user)):
-    graph = build_graph_from_postgres(current_user["user_id"])
-    ppr_graph = build_graph_from_dayfold(graph)
-    ppr = PersonalizedPageRank(ppr_graph)
-    feed_builder = FeedBuilder(ppr_graph, ppr)
-    teleport = build_topic_teleport_set(ppr_graph, str(current_user["user_id"]))
-    raw_feed = feed_builder.build_feed(str(current_user["user_id"]), set(), 10, teleport)
-
-    # Fetch full pin details for each bucket
     conn = get_connection()
-    detailed_feed = {}
     with conn.cursor() as cur:
-        for bucket, pin_ids in raw_feed.items():
-            if not pin_ids:
-                detailed_feed[bucket] = []
-                continue
-            
-            # Convert string IDs back to integers
-            int_ids = [int(pid) for pid in pin_ids]
-            
-            cur.execute("""
-                SELECT p.*, b.title as board_title, u.username as author, u.id as author_id
-                FROM pins p
-                JOIN boards b ON p.board_id = b.id
-                JOIN users u ON b.user_id = u.id
-                WHERE p.id = ANY(%s)
-            """, (int_ids,))
-            pins = {p["id"]: dict(p) for p in cur.fetchall()}
-            # Reorder pins according to PPR ranking
-            detailed_feed[bucket] = [pins[pid] for pid in int_ids if pid in pins]
+        cur.execute("""
+            SELECT p.*, b.title as board_title, u.username as author, u.id as author_id
+            FROM pins p
+            JOIN boards b ON p.board_id = b.id
+            JOIN users u ON b.user_id = u.id
+            JOIN follows f ON b.user_id = f.following_id
+            WHERE f.follower_id = %s
+            ORDER BY p.likes DESC, p.created_at DESC
+            LIMIT 10
+        """, (current_user["user_id"],))
+        followed = cur.fetchall()
 
-    return detailed_feed
+        cur.execute("""
+            SELECT p.*, b.title as board_title, u.username as author, u.id as author_id
+            FROM pins p
+            JOIN boards b ON p.board_id = b.id
+            JOIN users u ON b.user_id = u.id
+            WHERE b.category IN (SELECT DISTINCT category FROM boards WHERE user_id = %s)
+              AND b.user_id != %s
+            ORDER BY p.likes DESC, RANDOM()
+            LIMIT 10
+        """, (current_user["user_id"], current_user["user_id"]))
+        discovery = cur.fetchall()
+
+        cur.execute("""
+            SELECT p.*, b.title as board_title, u.username as author, u.id as author_id
+            FROM pins p
+            JOIN boards b ON p.board_id = b.id
+            JOIN users u ON b.user_id = u.id
+            ORDER BY RANDOM()
+            LIMIT 10
+        """)
+        serendipity = cur.fetchall()
+
+    return {
+        "followed": followed,
+        "discovery": discovery,
+        "serendipity": serendipity,
+    }
 
 @router.get("/sync-graph")
 def sync_neo4j_with_postgres(current_user=Depends(get_current_user)):

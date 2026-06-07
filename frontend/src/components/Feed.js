@@ -10,6 +10,8 @@ function Feed({ token }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [likedIds, setLikedIds] = useState(new Set());
+  const [savedIds, setSavedIds] = useState(new Set());
+  const [zoomedPin, setZoomedPin] = useState(null);
   const observerRef = useRef(null);
   const sentinelRef = useRef(null);
   const navigate = useNavigate();
@@ -89,6 +91,39 @@ function Feed({ token }) {
     }
   };
 
+  const handleSave = async (e, pinId) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`${API}/pins/${pinId}/save`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) return;
+
+      setSavedIds(prev => {
+        const next = new Set(prev);
+        data.saved ? next.add(pinId) : next.delete(pinId);
+        return next;
+      });
+    } catch (error) {
+      console.error("Save error:", error);
+    }
+  };
+
+  const handleShare = async (e, pinId) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/pin/${pinId}`);
+    } catch (error) {
+      console.error("Share error:", error);
+    }
+  };
+
+  const getImageSrc = (pin) => (
+    pin.image_url?.startsWith('http') ? pin.image_url : `${API}${pin.image_url}`
+  );
+
   if (loading) return (
     <div className="flex justify-center items-center min-h-[50vh]">
       <div className="flex gap-2">
@@ -117,10 +152,12 @@ function Feed({ token }) {
             {pins.map(pin => (
               <div
                 key={pin.id}
-                onClick={() => navigate(`/pin/${pin.id}`)}
-                className="break-inside-avoid group cursor-zoom-in relative mb-4"
+                className="break-inside-avoid group relative mb-4"
               >
-                <div className="relative rounded-[20px] overflow-hidden bg-gray-100 shadow-sm transition-all duration-300 group-hover:shadow-xl border border-gray-100">
+                <div
+                  onClick={() => setZoomedPin(pin)}
+                  className="relative rounded-[20px] overflow-hidden bg-gray-100 shadow-sm transition-all duration-300 group-hover:shadow-xl border border-gray-100 cursor-zoom-in"
+                >
                     {pin.feed_type && (
     <span className={`absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider z-10 ${
       pin.feed_type === 'followed'  ? 'bg-blue-500 text-white' :
@@ -134,7 +171,7 @@ function Feed({ token }) {
   )}
                   {pin.image_url ? (
                     <img
-                      src={pin.image_url.startsWith('http') ? pin.image_url : `${API}${pin.image_url}`}
+                      src={getImageSrc(pin)}
                       alt={pin.title}
                       className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
                       style={{ minHeight: '150px', maxHeight: '500px' }}
@@ -153,13 +190,18 @@ function Feed({ token }) {
 
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-3 flex flex-col justify-between">
                     <div className="flex justify-end">
-                      <button className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-lg transform translate-y-[-10px] group-hover:translate-y-0 transition-all duration-300">
-                        Save
+                      <button
+                        onClick={(e) => handleSave(e, pin.id)}
+                        className={`px-5 py-2.5 rounded-full font-bold text-sm shadow-lg transform translate-y-[-10px] group-hover:translate-y-0 transition-all duration-300 ${
+                          savedIds.has(pin.id) ? 'bg-gray-900 text-white' : 'bg-red-600 hover:bg-red-700 text-white'
+                        }`}
+                      >
+                        {savedIds.has(pin.id) ? 'Saved' : 'Save'}
                       </button>
                     </div>
                     <div className="flex justify-between items-center">
                       <button
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => handleShare(e, pin.id)}
                         className="bg-white/90 hover:bg-white p-2 rounded-full shadow-md text-gray-800 transition-colors"
                       >🔗</button>
                       <button
@@ -171,12 +213,15 @@ function Feed({ token }) {
                 </div>
 
                 <div className="mt-2 px-1 flex items-start justify-between">
-                  <div>
+                  <button
+                    onClick={() => navigate(`/pin/${pin.id}`)}
+                    className="min-w-0 text-left"
+                  >
                     <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">{pin.title}</p>
                     <p className="text-xs text-gray-500 mt-1 font-medium italic">
                       {pin.author ? `By ${pin.author}` : `Pin #${pin.id}`}
                     </p>
-                  </div>
+                  </button>
                   <button
                     onClick={(e) => handleLike(e, pin.id)}
                     className="flex items-center gap-1 group/like active:scale-90 transition-transform"
@@ -205,6 +250,26 @@ function Feed({ token }) {
 
           {!hasMore && pins.length > 0 && (
             <div className="text-center py-10 text-gray-400 text-sm italic">
+            </div>
+          )}
+
+          {zoomedPin && (
+            <div
+              className="fixed inset-0 z-50 bg-black/80 p-4 md:p-8 flex items-center justify-center"
+              onClick={() => setZoomedPin(null)}
+            >
+              <button
+                onClick={() => setZoomedPin(null)}
+                className="absolute top-4 right-4 bg-white text-black rounded-full px-4 py-2 text-sm font-black"
+              >
+                Close
+              </button>
+              <img
+                src={getImageSrc(zoomedPin)}
+                alt={zoomedPin.title}
+                className="max-h-full max-w-full object-contain rounded-2xl shadow-2xl"
+                onClick={e => e.stopPropagation()}
+              />
             </div>
           )}
         </>

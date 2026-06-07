@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom';
 import Feed from './components/Feed';
 import Login from './components/Login';
@@ -7,6 +7,8 @@ import Discover from './components/Discover';
 import Profile from './components/Profile';
 import Search from './components/Search'; 
 import PinDetail from './components/PinDetail';
+import Friends from './components/Friends';
+import CommunityPins from './components/CommunityPins';
 
 
 
@@ -24,12 +26,39 @@ function App() {
     navigate('/feed');
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.clear();
     setToken(null);
     setUserId(null);
     navigate('/');
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    const validateSession = async () => {
+      try {
+        const res = await fetch('http://localhost:8000/users/me', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          handleLogout();
+          return;
+        }
+
+        const me = await res.json();
+        if (me?.id && String(me.id) !== String(userId)) {
+          localStorage.setItem('userId', me.id);
+          setUserId(me.id);
+        }
+      } catch (e) {
+        console.error('Session validation failed:', e);
+      }
+    };
+
+    validateSession();
+  }, [token, handleLogout, userId]);
 
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter' && searchInput.trim() !== '') {
@@ -57,6 +86,15 @@ function App() {
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+            </svg>
+          </NavLink>
+
+          <NavLink to="/friends" className={({ isActive }) => isActive ? "text-black" : "hover:text-black"}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
           </NavLink>
 
@@ -100,6 +138,8 @@ function App() {
           <Routes>
             <Route path="/feed" element={<Feed token={token} />} />
             <Route path="/discover" element={<Discover token={token} />} />
+            <Route path="/community/:id" element={<CommunityPins token={token} />} />
+            <Route path="/friends" element={<Friends token={token} />} />
             <Route path="/create" element={<Create token={token} />} />
             <Route path="/search" element={<Search token={token} />} />
             <Route path="/profile/:id" element={<Profile token={token} currentUserId={userId} />} />

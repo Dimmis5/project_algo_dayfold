@@ -14,9 +14,9 @@ def create_board(board: BoardCreate, current_user=Depends(get_current_user)):
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute("""
-            INSERT INTO boards (title, category, user_id)
-            VALUES (%s, %s, %s) RETURNING *
-        """, (board.title, board.category, current_user["user_id"]))
+            INSERT INTO boards (name, title, category, user_id)
+            VALUES (%s, %s, %s, %s) RETURNING *
+        """, (board.title, board.title, board.category, current_user["user_id"]))
         new_board = cur.fetchone()
         conn.commit()
     return new_board

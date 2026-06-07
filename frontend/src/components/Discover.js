@@ -190,7 +190,11 @@ Modular detection of clusters of interest. Groups users with dense interactions.
 Community calculations are in progress...              </p>
             ) : (
               Object.entries(communityGroups).map(([commId, members]) => (
-                <div key={commId} className="flex-1 min-w-[200px] p-5 bg-gray-50 rounded-3xl border border-emerald-50 relative overflow-hidden group">
+                <button
+                  key={commId}
+                  onClick={() => navigate(`/community/${commId}`)}
+                  className="flex-1 min-w-[200px] p-5 bg-gray-50 rounded-3xl border border-emerald-50 relative overflow-hidden group text-left hover:border-emerald-200 hover:bg-emerald-50/40 transition-colors"
+                >
                   <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
                     <span className="text-4xl font-black text-emerald-600">#{commId}</span>
                   </div>
@@ -204,7 +208,7 @@ Community calculations are in progress...              </p>
                       </span>
                     ))}
                   </div>
-                </div>
+                </button>
               ))
             )}
           </div>

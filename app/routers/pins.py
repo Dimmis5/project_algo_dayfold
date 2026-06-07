@@ -12,7 +12,7 @@ UPLOAD_DIR = "uploads"
 @router.post("")
 async def create_pin(
     title: str = Form(...), 
-    board_id: int = Form(...), 
+    board_id: str = Form(...), 
     file: UploadFile = File(...), 
     current_user=Depends(get_current_user)
 ):
@@ -30,19 +30,25 @@ async def create_pin(
         image_url = f"/uploads/{filename}"
 
         cur.execute("""
-            INSERT INTO pins (title, board_id, image_url)
-            VALUES (%s, %s, %s) RETURNING *
-        """, (title, board_id, image_url))
+            INSERT INTO pins (title, board_id, image_url, user_id)
+            VALUES (%s, %s, %s, %s) RETURNING *
+        """, (title, board_id, image_url, current_user["user_id"]))
         new_pin = cur.fetchone()
         conn.commit()
     return new_pin
 
 @router.get("/{pin_id}")
-def get_pin(pin_id: int, current_user=Depends(get_current_user)):
+def get_pin(pin_id: str, current_user=Depends(get_current_user)):
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT p.*, b.title as board_title, b.category, u.id as author_id, u.username as author
+            SELECT
+                p.*,
+                p.id::text AS id,
+                b.title as board_title,
+                b.category,
+                u.id::text as author_id,
+                u.username as author
             FROM pins p
             JOIN boards b ON p.board_id = b.id
             JOIN users u ON b.user_id = u.id
@@ -51,10 +57,22 @@ def get_pin(pin_id: int, current_user=Depends(get_current_user)):
         pin = cur.fetchone()
         if not pin:
             raise HTTPException(status_code=404, detail="Pin introuvable")
+
+        cur.execute(
+            "SELECT 1 FROM pin_likes WHERE user_id = %s AND pin_id = %s",
+            (current_user["user_id"], pin_id),
+        )
+        pin["liked"] = cur.fetchone() is not None
+
+        cur.execute(
+            "SELECT 1 FROM pin_saves WHERE user_id = %s AND pin_id = %s",
+            (current_user["user_id"], pin_id),
+        )
+        pin["saved"] = cur.fetchone() is not None
     return pin
 
 @router.post("/{pin_id}/like")
-def like_pin(pin_id: int, current_user=Depends(get_current_user)):
+def like_pin(pin_id: str, current_user=Depends(get_current_user)):
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute("SELECT 1 FROM pin_likes WHERE user_id = %s AND pin_id = %s",
@@ -76,8 +94,36 @@ def like_pin(pin_id: int, current_user=Depends(get_current_user)):
         conn.commit()
     return {"pin": pin, "liked": not already_liked}
 
+@router.post("/{pin_id}/save")
+def save_pin(pin_id: str, current_user=Depends(get_current_user)):
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM pins WHERE id = %s", (pin_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Pin introuvable")
+
+        cur.execute(
+            "SELECT 1 FROM pin_saves WHERE user_id = %s AND pin_id = %s",
+            (current_user["user_id"], pin_id),
+        )
+        already_saved = cur.fetchone()
+
+        if already_saved:
+            cur.execute(
+                "DELETE FROM pin_saves WHERE user_id = %s AND pin_id = %s",
+                (current_user["user_id"], pin_id),
+            )
+        else:
+            cur.execute(
+                "INSERT INTO pin_saves (user_id, pin_id) VALUES (%s, %s)",
+                (current_user["user_id"], pin_id),
+            )
+
+        conn.commit()
+    return {"saved": not already_saved}
+
 @router.get("/{pin_id}/related")
-def get_related_pins(pin_id: int, current_user=Depends(get_current_user)):
+def get_related_pins(pin_id: str, current_user=Depends(get_current_user)):
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute("SELECT category FROM pins p JOIN boards b ON p.board_id = b.id WHERE p.id = %s", (pin_id,))
