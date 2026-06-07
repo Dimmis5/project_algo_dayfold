@@ -165,7 +165,7 @@ function Profile({ token, currentUserId }) {
                     <div className="relative aspect-[3/4] w-full rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm transition-all duration-300 group-hover:shadow-xl">
                       {pin.image_url ? (
                         <img 
-                          src={pin.image_url.startsWith('http') ? pin.image_url : `${API}/uploads/${pin.image_url}`} 
+                          src={pin.image_url.startsWith('http') ? pin.image_url : `${API}${pin.image_url}`} 
                           alt={pin.title}
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />

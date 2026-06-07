@@ -86,7 +86,7 @@ function Discover({ token }) {
       <div className="relative aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden border border-gray-100 shadow-sm group-hover:shadow-md transition-all">
         {pin.image_url ? (
           <img 
-            src={pin.image_url.startsWith('http') ? pin.image_url : `${API}/uploads/${pin.image_url}`} 
+            src={pin.image_url.startsWith('http') ? pin.image_url : `${API}${pin.image_url}`} 
             alt={pin.title}
             className="w-full h-full object-cover"
           />
