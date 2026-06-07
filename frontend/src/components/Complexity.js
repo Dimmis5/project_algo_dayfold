@@ -185,18 +185,29 @@ const Complexity = () => {
                 <div className="bg-white p-6 rounded-xl shadow-lg">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-semibold text-gray-700">Time Performance</h2>
-                        {algo !== 'all' && (
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: algoInfo[algo].color || "#ef4444" }}></span>
-                                    <span className="text-sm text-gray-600 font-medium">Real (ms)</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="w-3 h-3 rounded-full bg-gray-400"></span>
-                                    <span className="text-sm text-gray-600 font-medium">Theoretical {algoInfo[algo].complexity}</span>
-                                </div>
-                            </div>
-                        )}
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                            {algo === 'all' ? (
+                                Object.keys(algoInfo).filter(k => k !== 'all').map(k => (
+                                    <div key={k} className="flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: algoInfo[k].color }}></span>
+                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">
+                                            {algoInfo[k].name.split(' ')[0]}: <span className="text-gray-900">{algoInfo[k].complexity}</span>
+                                        </span>
+                                    </div>
+                                ))
+                            ) : (
+                                <>
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: algoInfo[algo].color || "#ef4444" }}></span>
+                                        <span className="text-sm text-gray-600 font-medium">Real (ms)</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-3 h-3 rounded-full bg-gray-400"></span>
+                                        <span className="text-sm text-gray-600 font-medium">Theoretical {algoInfo[algo].complexity}</span>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                     {data.length > 0 ? (
                         <div className="h-[500px] w-full">
