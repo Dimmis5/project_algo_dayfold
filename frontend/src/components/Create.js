@@ -182,10 +182,6 @@ const handleCreatePin = async () => {
 
       </div>
 
-      <div className="mt-12 text-center p-6 bg-gray-50 rounded-[24px] border border-gray-100">
-        <p className="text-xs text-gray-400 uppercase font-black tracking-widest">Dayfold Engine v2.0</p>
-        <p className="text-xs text-gray-400 mt-1">Your data is automatically injected into our recommendation algorithms.</p>
-      </div>
     </div>
   );
 }

@@ -38,7 +38,6 @@ function Feed({ token }) {
         setHasMore(data.has_more ?? true);
       }
       
-      // Fetch saved IDs
       try {
         const userId = localStorage.getItem('userId');
         const res = await fetch(`${API}/users/${userId}/saved`, {
@@ -164,16 +163,16 @@ function Feed({ token }) {
               >
                 <div className="relative rounded-[20px] overflow-hidden bg-gray-100 shadow-sm transition-all duration-300 group-hover:shadow-xl border border-gray-100">
                     {pin.feed_type && (
-    <span className={`absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider z-10 ${
-      pin.feed_type === 'followed'  ? 'bg-blue-500 text-white' :
-      pin.feed_type === 'discovery' ? 'bg-emerald-500 text-white' :
-                                      'bg-purple-500 text-white'
-    }`}>
-      {pin.feed_type === 'followed'  ? '👥 Following' :
-       pin.feed_type === 'discovery' ? '✦ Discovery' :
-                                       '🎲 Surprise'}
-    </span>
-  )}
+                      <span className={`absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider z-10 ${
+                        pin.feed_type === 'followed'  ? 'bg-blue-500 text-white' :
+                        pin.feed_type === 'discovery' ? 'bg-emerald-500 text-white' :
+                                                        'bg-purple-500 text-white'
+                      }`}>
+                        {pin.feed_type === 'followed'  ? '👥 Following' :
+                        pin.feed_type === 'discovery' ? '✦ Discovery' :
+                                                        '🎲 Surprise'}
+                      </span>
+                    )}
                   {pin.image_url ? (
                     <img
                       src={pin.image_url.startsWith('http') ? pin.image_url : `${API}${pin.image_url}`}
@@ -206,10 +205,6 @@ function Feed({ token }) {
                       </button>
                     </div>
                     <div className="flex justify-between items-center">
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="bg-white/90 hover:bg-white p-2 rounded-full shadow-md text-gray-800 transition-colors"
-                      >🔗</button>
                       <button
                         onClick={(e) => e.stopPropagation()}
                         className="bg-white/90 hover:bg-white p-2 rounded-full shadow-md text-gray-800 transition-colors"
