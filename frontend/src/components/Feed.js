@@ -205,10 +205,7 @@ function Feed({ token }) {
                       </button>
                     </div>
                     <div className="flex justify-between items-center">
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="bg-white/90 hover:bg-white p-2 rounded-full shadow-md text-gray-800 transition-colors"
-                      >...</button>
+
                     </div>
                   </div>
                 </div>

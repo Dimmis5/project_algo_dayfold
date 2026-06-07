@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Activity, Play } from 'lucide-react';
 
@@ -10,6 +10,7 @@ const Complexity = () => {
     const [algo, setAlgo] = useState('bfs');
 
     const algoInfo = {
+        // ... (existing algoInfo stays the same)
         bfs: {
             name: "BFS (Friend Suggestions)",
             complexity: "O(N + E)",
@@ -56,7 +57,7 @@ const Complexity = () => {
         }
     };
 
-    const runBenchmark = async () => {
+    const runBenchmark = useCallback(async () => {
         setLoading(true);
         try {
             if (algo === 'all') {
@@ -93,7 +94,11 @@ const Complexity = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [algo, nMax, steps]);
+
+    useEffect(() => {
+        runBenchmark();
+    }, [runBenchmark]);
 
     const handleAlgoChange = (newAlgo) => {
         setAlgo(newAlgo);
@@ -173,14 +178,7 @@ const Complexity = () => {
                                 <option value="all" className="font-bold">Compare All</option>
                             </select>
                         </div>
-                        <button 
-                            onClick={runBenchmark}
-                            disabled={loading}
-                            className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 h-[42px]"
-                        >
-                            <Play size={18} />
-                            {loading ? "Calculating..." : "Run"}
-                        </button>
+
                     </div>
                 </div>
 
@@ -224,7 +222,9 @@ const Complexity = () => {
                         </div>
                     ) : (
                         <div className="h-[500px] flex items-center justify-center border-2 border-dashed border-gray-200 rounded-lg">
-                            <p className="text-gray-400 italic">Click "Run" to analyze {algoInfo[algo].name}</p>
+                            <p className="text-gray-400 italic">
+                                {loading ? `Calculating complexity for ${algoInfo[algo].name}...` : "No data available."}
+                            </p>
                         </div>
                     )}
                 </div>
