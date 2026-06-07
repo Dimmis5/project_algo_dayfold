@@ -10,6 +10,8 @@ function Feed({ token }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [likedIds, setLikedIds] = useState(new Set());
+  const [savedIds, setSavedIds] = useState(new Set());
+  const [savingId, setSavingId] = useState(null);
   const observerRef = useRef(null);
   const sentinelRef = useRef(null);
   const navigate = useNavigate();
@@ -35,10 +37,23 @@ function Feed({ token }) {
         setLikedIds(new Set(data.liked_ids || []));
         setHasMore(data.has_more ?? true);
       }
+      
+      // Fetch saved IDs
+      try {
+        const userId = localStorage.getItem('userId');
+        const res = await fetch(`${API}/users/${userId}/saved`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const savedData = await res.json();
+        setSavedIds(new Set(savedData.saved_pins.map(p => p.id)));
+      } catch (e) {
+        console.error("Error fetching saved pins:", e);
+      }
+
       setLoading(false);
     };
     init();
-  }, [fetchPage]);
+  }, [fetchPage, token]);
 
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
@@ -86,6 +101,33 @@ function Feed({ token }) {
       });
     } catch (error) {
       console.error("Like error:", error);
+    }
+  };
+
+  const handleSave = async (e, pinId) => {
+    e.stopPropagation();
+    const isAlreadySaved = savedIds.has(pinId);
+    
+    setSavingId(pinId);
+    try {
+      const method = isAlreadySaved ? 'DELETE' : 'POST';
+      const res = await fetch(`${API}/pins/${pinId}/save`, {
+        method: method,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        setSavedIds(prev => {
+          const next = new Set(prev);
+          if (isAlreadySaved) next.delete(pinId);
+          else next.add(pinId);
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error("Save error:", error);
+    } finally {
+      setSavingId(null);
     }
   };
 
@@ -153,8 +195,14 @@ function Feed({ token }) {
 
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-3 flex flex-col justify-between">
                     <div className="flex justify-end">
-                      <button className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-lg transform translate-y-[-10px] group-hover:translate-y-0 transition-all duration-300">
-                        Save
+                      <button 
+                        onClick={(e) => handleSave(e, pin.id)}
+                        disabled={savingId === pin.id}
+                        className={`${
+                          savedIds.has(pin.id) ? 'bg-black' : 'bg-red-600 hover:bg-red-700'
+                        } text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-lg transform translate-y-[-10px] group-hover:translate-y-0 transition-all duration-300 disabled:opacity-80`}
+                      >
+                        {savingId === pin.id ? 'Saving...' : savedIds.has(pin.id) ? 'Saved' : 'Save'}
                       </button>
                     </div>
                     <div className="flex justify-between items-center">

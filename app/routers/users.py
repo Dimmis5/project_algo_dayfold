@@ -57,3 +57,19 @@ def follow_user(user_id: int, current_user=Depends(get_current_user)):
         """, (current_user["user_id"], user_id))
         conn.commit()
     return {"message": f"Vous suivez maintenant l'utilisateur {user_id}"}
+
+@router.get("/{user_id}/saved")
+def get_saved_pins(user_id: int, current_user=Depends(get_current_user)):
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT p.*, b.title as board_title, u.username as author, u.id as author_id
+            FROM pins p
+            JOIN pin_saves ps ON p.id = ps.pin_id
+            JOIN boards b ON p.board_id = b.id
+            JOIN users u ON b.user_id = u.id
+            WHERE ps.user_id = %s
+            ORDER BY p.created_at DESC
+        """, (user_id,))
+        saved_pins = cur.fetchall()
+    return {"saved_pins": saved_pins}

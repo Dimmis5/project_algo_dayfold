@@ -9,6 +9,8 @@ function PinDetail({ token }) {
   const [pin, setPin] = useState(null);
   const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const fetchPin = useCallback(async () => {
     setLoading(true);
@@ -22,6 +24,14 @@ function PinDetail({ token }) {
       const relatedData = await relatedRes.json();
       setPin(pinData);
       setRelated(relatedData.related || []);
+
+      // Check if saved
+      const userId = localStorage.getItem('userId');
+      const savedRes = await fetch(`${API}/users/${userId}/saved`, { headers });
+      const savedData = await savedRes.json();
+      const saved = savedData.saved_pins.some(p => String(p.id) === String(id));
+      setIsSaved(saved);
+
     } catch (e) {
       console.error(e);
     } finally {
@@ -36,6 +46,31 @@ function PinDetail({ token }) {
     const res = await fetch(`${API}/pins/${id}/like`, { method: 'POST', headers });
     const data = await res.json();
     setPin(prev => ({ ...prev, likes: data.pin.likes }));
+  };
+
+  const handleSave = async (e, pinId) => {
+    if (e) e.stopPropagation();
+    const targetId = pinId || id;
+    const isTargetAlreadySaved = pinId ? false : isSaved; // Simplified for related pins
+
+    setSaving(true);
+    try {
+      const method = (pinId ? false : isSaved) ? 'DELETE' : 'POST';
+      const res = await fetch(`${API}/pins/${targetId}/save`, {
+        method: method,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        if (!pinId) setIsSaved(!isSaved);
+        else {
+            alert(method === 'POST' ? "Enregistré !" : "Retiré !");
+        }
+      }
+    } catch (error) {
+      console.error("Save error:", error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return (
@@ -92,8 +127,12 @@ function PinDetail({ token }) {
                 <span className="text-2xl group-hover:scale-125 transition-transform">♥</span>
                 <span className="font-bold text-sm">{pin.likes}</span>
               </button>
-              <button className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-full font-bold text-sm transition-colors shadow-md">
-                Save
+              <button 
+                onClick={() => handleSave()}
+                disabled={saving}
+                className={`${isSaved ? 'bg-black' : 'bg-red-600 hover:bg-red-700'} text-white px-6 py-2.5 rounded-full font-bold text-sm transition-colors shadow-md disabled:opacity-80`}
+              >
+                {saving ? 'Saving...' : isSaved ? 'Saved' : 'Save'}
               </button>
             </div>
 
@@ -154,7 +193,10 @@ function PinDetail({ token }) {
                     </div>
                   )}
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-3">
-                    <button className="bg-red-600 text-white px-4 py-2 rounded-full font-bold text-xs shadow-lg">
+                    <button 
+                      onClick={(e) => handleSave(e, p.id)}
+                      className="bg-red-600 text-white px-4 py-2 rounded-full font-bold text-xs shadow-lg hover:bg-red-700 transition-colors"
+                    >
                       Save
                     </button>
                   </div>

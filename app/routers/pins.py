@@ -76,6 +76,30 @@ def like_pin(pin_id: int, current_user=Depends(get_current_user)):
         conn.commit()
     return {"pin": pin, "liked": not already_liked}
 
+@router.post("/{pin_id}/save")
+def save_pin(pin_id: int, current_user=Depends(get_current_user)):
+    conn = get_connection()
+    with conn.cursor() as cur:
+        # Check if already saved
+        cur.execute("SELECT 1 FROM pin_saves WHERE user_id = %s AND pin_id = %s",
+                    (current_user["user_id"], pin_id))
+        if cur.fetchone():
+            return {"message": "Already saved", "saved": True}
+        
+        cur.execute("INSERT INTO pin_saves (user_id, pin_id) VALUES (%s, %s)",
+                    (current_user["user_id"], pin_id))
+        conn.commit()
+    return {"message": "Saved successfully", "saved": True}
+
+@router.delete("/{pin_id}/save")
+def unsave_pin(pin_id: int, current_user=Depends(get_current_user)):
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM pin_saves WHERE user_id = %s AND pin_id = %s",
+                    (current_user["user_id"], pin_id))
+        conn.commit()
+    return {"message": "Unsaved successfully", "saved": False}
+
 @router.get("/{pin_id}/related")
 def get_related_pins(pin_id: int, current_user=Depends(get_current_user)):
     conn = get_connection()
