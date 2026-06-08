@@ -10,7 +10,6 @@ const Complexity = () => {
     const [algo, setAlgo] = useState('bfs');
 
     const algoInfo = {
-        // ... (existing algoInfo stays the same)
         bfs: {
             name: "BFS (Friend Suggestions)",
             complexity: "O(N + E)",
