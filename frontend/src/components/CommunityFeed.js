@@ -56,18 +56,18 @@ function CommunityFeed({ token }) {
             onClick={() => navigate('/discover')}
             className="mb-3 text-sm font-bold text-gray-400 hover:text-black transition-colors"
           >
-            Retour aux communautes
+            Back to communities
           </button>
           <h1 className="text-3xl font-black tracking-tight text-gray-900">{communityName}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {pins.length} posts publies par les membres de cette communaute
+            {pins.length} posts published by members of this community
           </p>
         </div>
       </div>
 
       {pins.length === 0 ? (
         <div className="py-20 text-center bg-gray-50 rounded-[32px] border border-dashed border-gray-200">
-          <p className="text-gray-400 font-medium italic">Aucun post dans cette communaute.</p>
+          <p className="text-gray-400 font-medium italic">No posts in this community.</p>
         </div>
       ) : (
         <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">

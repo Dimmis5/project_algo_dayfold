@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Activity, Play } from 'lucide-react';
+import { Activity } from 'lucide-react';
 
 const Complexity = () => {
     const [data, setData] = useState([]);
@@ -9,8 +9,7 @@ const Complexity = () => {
     const [steps] = useState(10);
     const [algo, setAlgo] = useState('bfs');
 
-    const algoInfo = {
-        // ... (existing algoInfo stays the same)
+    const algoInfo = useMemo(() => ({
         bfs: {
             name: "BFS (Friend Suggestions)",
             complexity: "O(N + E)",
@@ -55,7 +54,7 @@ const Complexity = () => {
             defaultN: 5000,
             minN: 100
         }
-    };
+    }), []);
 
     const runBenchmark = useCallback(async () => {
         setLoading(true);
@@ -94,7 +93,7 @@ const Complexity = () => {
         } finally {
             setLoading(false);
         }
-    }, [algo, nMax, steps]);
+    }, [algo, nMax, steps, algoInfo]);
 
     useEffect(() => {
         runBenchmark();

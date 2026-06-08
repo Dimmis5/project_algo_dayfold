@@ -66,7 +66,7 @@ function FriendSearch({ token }) {
   return (
     <div className="max-w-5xl mx-auto px-2 md:px-8 py-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-black tracking-tight text-gray-900">Recherche d'ami</h1>
+        <h1 className="text-3xl font-black tracking-tight text-gray-900">Search Friends</h1>
         <div className="mt-5 relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -76,7 +76,7 @@ function FriendSearch({ token }) {
           </span>
           <input
             type="text"
-            placeholder="Chercher un pseudo ou un email"
+            placeholder="Search for a username or email"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full bg-[#efefef] hover:bg-[#e2e2e2] focus:bg-white focus:ring-2 focus:ring-red-100 py-3 pl-12 pr-4 rounded-full outline-none transition-all"
@@ -85,10 +85,10 @@ function FriendSearch({ token }) {
       </div>
 
       {loading ? (
-        <div className="py-16 text-center text-gray-500 font-medium italic">Recherche en cours...</div>
+        <div className="py-16 text-center text-gray-500 font-medium italic">Searching...</div>
       ) : friends.length === 0 ? (
         <div className="py-16 text-center bg-gray-50 rounded-3xl border border-gray-100">
-          <p className="text-gray-500 font-medium">Aucun utilisateur trouve.</p>
+          <p className="text-gray-500 font-medium">No users found.</p>
         </div>
       ) : (
         <div className="grid gap-3">
@@ -100,7 +100,7 @@ function FriendSearch({ token }) {
               <button
                 onClick={() => navigate(`/profile/${friend.id}`)}
                 className="w-14 h-14 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-xl font-black text-gray-700 shrink-0"
-                title={`Voir le profil de ${friend.username}`}
+                title={`View ${friend.username}'s profile`}
               >
                 {friend.username[0].toUpperCase()}
               </button>
@@ -132,7 +132,7 @@ function FriendSearch({ token }) {
                     : 'bg-red-600 text-white hover:bg-red-700 shadow-md'
                 }`}
               >
-                {followingId === friend.id ? '...' : friend.is_following ? 'Suivi' : 'Suivre'}
+                {followingId === friend.id ? '...' : friend.is_following ? 'Following' : 'Follow'}
               </button>
             </div>
           ))}
