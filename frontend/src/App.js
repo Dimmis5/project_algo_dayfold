@@ -8,6 +8,8 @@ import Profile from './components/Profile';
 import Search from './components/Search'; 
 import PinDetail from './components/PinDetail';
 import Complexity from './components/Complexity';
+import FriendSearch from './components/FriendSearch';
+import CommunityFeed from './components/CommunityFeed';
 
 function App() {
 
@@ -68,6 +70,15 @@ function App() {
             </svg>
           </NavLink>
 
+          <NavLink to="/friends" className={({ isActive }) => isActive ? "text-black" : "hover:text-black"} title="Recherche d'ami">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <line x1="19" y1="8" x2="19" y2="14"/>
+              <line x1="22" y1="11" x2="16" y2="11"/>
+            </svg>
+          </NavLink>
+
           <NavLink to="/complexity" className={({ isActive }) => isActive ? "text-red-500" : "hover:text-red-500"}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -108,6 +119,8 @@ function App() {
             <Route path="/discover" element={<Discover token={token} />} />
             <Route path="/create" element={<Create token={token} />} />
             <Route path="/search" element={<Search token={token} />} />
+            <Route path="/friends" element={<FriendSearch token={token} />} />
+            <Route path="/community/:id" element={<CommunityFeed token={token} />} />
             <Route path="/complexity" element={<Complexity token={token} />} />
             <Route path="/profile/:id" element={<Profile token={token} currentUserId={userId} />} />
             <Route path="*" element={<Navigate to="/feed" />} />

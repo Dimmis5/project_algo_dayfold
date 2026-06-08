@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const API = 'http://localhost:8000';
+const API = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function Feed({ token }) {
   const [pins, setPins] = useState([]);
@@ -20,6 +20,11 @@ function Feed({ token }) {
     try {
       const headers = { Authorization: `Bearer ${token}` };
       const res = await fetch(`${API}/algo/feed?page=${pageNum}`, { headers });
+      if (res.status === 401) {
+        localStorage.clear();
+        window.location.reload();
+        return null;
+      }
       const data = await res.json();
       return data;
     } catch (error) {

@@ -11,6 +11,44 @@ def get_me(current_user=Depends(get_current_user)):
         cur.execute("SELECT id, username, email, is_admin FROM users WHERE id = %s", (current_user["user_id"],))
         return cur.fetchone()
 
+@router.get("/search/friends")
+def search_friends(q: str = "", current_user=Depends(get_current_user)):
+    conn = get_connection()
+    current_user_id = current_user["user_id"]
+    query = f"%{q.strip()}%"
+
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT
+                u.id,
+                u.username,
+                u.email,
+                u.is_admin,
+                EXISTS (
+                    SELECT 1
+                    FROM follows f
+                    WHERE f.follower_id = %s AND f.following_id = u.id
+                ) AS is_following,
+                (
+                    SELECT COUNT(*)
+                    FROM follows f
+                    WHERE f.following_id = u.id
+                ) AS followers,
+                (
+                    SELECT COUNT(*)
+                    FROM boards b
+                    WHERE b.user_id = u.id
+                ) AS boards_count
+            FROM users u
+            WHERE u.id <> %s
+              AND (%s = '%%' OR u.username ILIKE %s OR u.email ILIKE %s)
+            ORDER BY is_following ASC, followers DESC, u.username ASC
+            LIMIT 30
+        """, (current_user_id, current_user_id, query, query, query))
+        users = cur.fetchall()
+
+    return users
+
 @router.get("/{user_id}/profile")
 def get_profile(user_id: int, current_user=Depends(get_current_user)):
     conn = get_connection()

@@ -10,7 +10,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
-DATABASE_URL = "postgresql://postgres:password123@postgres:5432/dayfold"
+DATABASE_URL = os.getenv("POSTGRES_URI", "postgresql://postgres:password123@postgres:5432/dayfold")
 
 def get_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)

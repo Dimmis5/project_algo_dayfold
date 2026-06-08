@@ -21,11 +21,12 @@ def register(user: UserRegister):
         
         cur.execute("""
             INSERT INTO users (username, email, password_hash)
-            VALUES (%s, %s, %s) RETURNING id, username, email, is_admin
+            VALUES (%s, %s, %s) RETURNING id::text AS id, username, email
         """, (user.username, user.email, hash_password(user.password)))
         new_user = cur.fetchone()
         conn.commit()
-    return {"user": new_user, "token": create_token({"user_id": new_user["id"], "is_admin": new_user["is_admin"]})}
+    new_user["is_admin"] = False
+    return {"user": new_user, "token": create_token({"user_id": new_user["id"], "is_admin": False})}
 
 @router.post("/login")
 def login(form: OAuth2PasswordRequestForm = Depends()):
@@ -35,4 +36,10 @@ def login(form: OAuth2PasswordRequestForm = Depends()):
         user = cur.fetchone()
     if not user or not verify_password(form.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    return {"access_token": create_token({"user_id": user["id"], "is_admin": user["is_admin"]}), "token_type": "bearer"}
+    return {
+        "access_token": create_token({
+            "user_id": str(user["id"]),
+            "is_admin": user.get("is_admin", False)
+        }),
+        "token_type": "bearer"
+    }

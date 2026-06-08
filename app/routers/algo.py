@@ -11,6 +11,56 @@ from collections import Counter
 
 router = APIRouter(prefix="/algo", tags=["algo"])
 
+def get_community_groups(graph):
+    communities = louvain(graph)
+
+    comm_to_users = {}
+    for uid, comm_id in communities.items():
+        if comm_id not in comm_to_users:
+            comm_to_users[comm_id] = []
+        comm_to_users[comm_id].append(uid)
+
+    orphans = []
+    final_comm_to_users = {}
+    for comm_id, uids in comm_to_users.items():
+        if len(uids) < 2:
+            orphans.extend(uids)
+        else:
+            final_comm_to_users[str(comm_id)] = uids
+
+    if orphans:
+        final_comm_to_users["orphans"] = orphans
+
+    return final_comm_to_users
+
+def get_community_names(graph, community_groups):
+    comm_names = {}
+    suffixes = ["Lovers", "Squad", "Hub", "Explorers", "Collective", "Addicts", "Club", "Circle"]
+    fallbacks = ["Creative Minds", "Trendsetters", "Rising Stars", "Visionaries", "Dayfold Stars"]
+
+    for comm_id, uids in community_groups.items():
+        if comm_id == "orphans":
+            comm_names[comm_id] = "New Explorers"
+            continue
+
+        categories = []
+        for uid in uids:
+            user = graph.users[uid]
+            for board in user.boards:
+                if board.category:
+                    categories.append(board.category)
+
+        idx = hash(str(comm_id)) % 100
+        if categories:
+            most_common = Counter(categories).most_common(1)[0][0]
+            suffix = suffixes[idx % len(suffixes)]
+            comm_names[comm_id] = f"{most_common} {suffix}"
+        else:
+            name_base = fallbacks[idx % len(fallbacks)]
+            comm_names[comm_id] = f"{name_base}"
+
+    return comm_names
+
 @router.get("/feed")
 def api_feed(current_user=Depends(get_current_user), page: int = 1):
     user_id = current_user["user_id"]
@@ -115,50 +165,8 @@ def api_suggest_friends(current_user=Depends(get_current_user)):
 @router.get("/communities")
 def api_communities(current_user=Depends(get_current_user)):
     graph = build_graph_from_postgres(current_user["user_id"])
-    communities = louvain(graph)
-    
-    comm_to_users = {}
-    for uid, comm_id in communities.items():
-        if comm_id not in comm_to_users:
-            comm_to_users[comm_id] = []
-        comm_to_users[comm_id].append(uid)
-    
-    orphans = []
-    final_comm_to_users = {}
-    for comm_id, uids in comm_to_users.items():
-        if len(uids) < 2:
-            orphans.extend(uids)
-        else:
-            final_comm_to_users[comm_id] = uids
-            
-    if orphans:
-        orphan_id = "orphans"
-        final_comm_to_users[orphan_id] = orphans
-
-    comm_names = {}
-    suffixes = ["Lovers", "Squad", "Hub", "Explorers", "Collective", "Addicts", "Club", "Circle"]
-    fallbacks = ["Creative Minds", "Trendsetters", "Rising Stars", "Visionaries", "Dayfold Stars"]
-    
-    for comm_id, uids in final_comm_to_users.items():
-        if comm_id == "orphans":
-            comm_names[comm_id] = "New Explorers"
-            continue
-            
-        categories = []
-        for uid in uids:
-            user = graph.users[uid]
-            for board in user.boards:
-                if board.category:
-                    categories.append(board.category)
-        
-        idx = hash(str(comm_id)) % 100 
-        if categories:
-            most_common = Counter(categories).most_common(1)[0][0]
-            suffix = suffixes[idx % len(suffixes)]
-            comm_names[comm_id] = f"{most_common} {suffix}"
-        else:
-            name_base = fallbacks[idx % len(fallbacks)]
-            comm_names[comm_id] = f"{name_base}"
+    final_comm_to_users = get_community_groups(graph)
+    comm_names = get_community_names(graph, final_comm_to_users)
 
     result = {}
     for comm_id, uids in final_comm_to_users.items():
@@ -169,6 +177,30 @@ def api_communities(current_user=Depends(get_current_user)):
         "communities": result,
         "names": {str(k): v for k, v in comm_names.items()}
     }
+
+@router.get("/communities/{community_id}/pins")
+def api_community_pins(community_id: str, current_user=Depends(get_current_user)):
+    graph = build_graph_from_postgres(current_user["user_id"])
+    community_groups = get_community_groups(graph)
+    user_ids = community_groups.get(community_id)
+
+    if not user_ids:
+        raise HTTPException(status_code=404, detail="Community not found")
+
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT p.*, b.title as board_title, b.category, u.username as author, u.id as author_id
+            FROM pins p
+            JOIN boards b ON p.board_id = b.id
+            JOIN users u ON b.user_id = u.id
+            WHERE b.user_id = ANY(%s)
+            ORDER BY p.created_at DESC, p.likes DESC
+            LIMIT 60
+        """, (user_ids,))
+        pins = cur.fetchall()
+
+    return {"community_id": community_id, "pins": pins}
 
 @router.get("/ppr-feed")
 def api_ppr_feed(current_user=Depends(get_current_user)):
