@@ -16,7 +16,7 @@ def get_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 def seed():
-    print("🚀 Démarrage du seed 'Grand Format' (50 utilisateurs, 100+ pins)...")
+    print("Démarrage du seed 'Grand Format' (50 utilisateurs, 100+ pins)...")
     conn = get_connection()
     cur = conn.cursor()
 

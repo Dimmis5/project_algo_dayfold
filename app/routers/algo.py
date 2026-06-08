@@ -211,7 +211,6 @@ def api_ppr_feed(current_user=Depends(get_current_user)):
     teleport = build_topic_teleport_set(ppr_graph, str(current_user["user_id"]))
     raw_feed = feed_builder.build_feed(str(current_user["user_id"]), set(), 10, teleport)
 
-    # Fetch full pin details for each bucket
     conn = get_connection()
     detailed_feed = {}
     with conn.cursor() as cur:
@@ -220,7 +219,6 @@ def api_ppr_feed(current_user=Depends(get_current_user)):
                 detailed_feed[bucket] = []
                 continue
             
-            # Convert string IDs back to integers
             int_ids = [int(pid) for pid in pin_ids]
             
             cur.execute("""
@@ -231,7 +229,6 @@ def api_ppr_feed(current_user=Depends(get_current_user)):
                 WHERE p.id = ANY(%s)
             """, (int_ids,))
             pins = {p["id"]: dict(p) for p in cur.fetchall()}
-            # Reorder pins according to PPR ranking
             detailed_feed[bucket] = [pins[pid] for pid in int_ids if pid in pins]
 
     return detailed_feed

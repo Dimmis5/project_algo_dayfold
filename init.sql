@@ -31,7 +31,23 @@ CREATE TABLE IF NOT EXISTS follows (
 );
 
 CREATE TABLE IF NOT EXISTS pin_likes (
+
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+
     pin_id  INTEGER REFERENCES pins(id) ON DELETE CASCADE,
+
     PRIMARY KEY (user_id, pin_id)
+
+);
+
+
+
+CREATE TABLE IF NOT EXISTS pin_saves (
+
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+
+    pin_id  INTEGER REFERENCES pins(id) ON DELETE CASCADE,
+
+    PRIMARY KEY (user_id, pin_id)
+
 );
