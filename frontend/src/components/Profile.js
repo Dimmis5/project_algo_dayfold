@@ -2,13 +2,17 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 
-const API = 'http://localhost:8000';
+const API = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function Profile({ token, currentUserId }) {
   const { id } = useParams();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedBoard, setSelectedBoard] = useState(null);
+  const [savedPins, setSavedPins] = useState([]);
+  const [mySavedIds, setMySavedIds] = useState(new Set());
+  const [showSaved, setShowSaved] = useState(false);
+  const [savingId, setSavingId] = useState(null);
   const navigate = useNavigate();
 
 
@@ -23,16 +27,62 @@ function Profile({ token, currentUserId }) {
       if (data.boards && data.boards.length > 0) {
         setSelectedBoard(data.boards[0].id);
       }
+
+      // Fetch saved pins for THIS profile (the one being viewed)
+      const savedRes = await fetch(`${API}/users/${id}/saved`, { headers });
+      const savedData = await savedRes.json();
+      setSavedPins(savedData.saved_pins || []);
+
+      // If viewing someone else, also fetch MY saved pins to show correct button states
+      if (String(id) !== String(currentUserId)) {
+          const mySavedRes = await fetch(`${API}/users/${currentUserId}/saved`, { headers });
+          const mySavedData = await mySavedRes.json();
+          setMySavedIds(new Set(mySavedData.saved_pins.map(p => p.id)));
+      } else {
+          setMySavedIds(new Set(savedData.saved_pins.map(p => p.id)));
+      }
+
     } catch (error) {
       console.error("Error fetching profile:", error);
     } finally {
       setLoading(false);
     }
-  }, [id, token]);
+  }, [id, token, currentUserId]);
 
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  const handleSave = async (e, pinId) => {
+    e.stopPropagation();
+    const isAlreadySaved = mySavedIds.has(pinId);
+    
+    setSavingId(pinId);
+    try {
+      const method = isAlreadySaved ? 'DELETE' : 'POST';
+      const res = await fetch(`${API}/pins/${pinId}/save`, {
+        method: method,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setMySavedIds(prev => {
+          const next = new Set(prev);
+          if (isAlreadySaved) next.delete(pinId);
+          else next.add(pinId);
+          return next;
+        });
+        
+        // If we are on our own profile and in the "Saved" tab, remove it from the visible list immediately
+        if (showSaved && String(id) === String(currentUserId)) {
+            setSavedPins(prev => prev.filter(p => p.id !== pinId));
+        }
+      }
+    } catch (error) {
+      console.error("Save error:", error);
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   const handleFollow = async () => {
     try {
@@ -114,98 +164,153 @@ function Profile({ token, currentUserId }) {
               {profile.is_following ? 'Following' : 'Follow'}
             </button>
           )}
-          <button className="p-2.5 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-            </svg>
-          </button>
         </div>
       </div>
 
-      {profile.boards.length === 0 ? (
-        <div className="bg-gray-50 rounded-[32px] p-16 text-center border-2 border-dashed border-gray-200">
-          <p className="text-gray-500 font-medium">You don't have any boards yet.</p>
-          <button className="mt-4 text-red-600 font-bold hover:text-red-700 transition-colors">
-            + Create my first board
+      <div className="flex justify-center gap-8 mb-8 border-b border-gray-100 pb-2">
+          <button 
+            onClick={() => setShowSaved(false)}
+            className={`pb-4 px-2 font-bold text-sm transition-all relative ${!showSaved ? 'text-black' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            Boards
+            {!showSaved && <div className="absolute bottom-0 left-0 w-full h-1 bg-black rounded-full" />}
           </button>
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-wrap justify-center gap-3 mb-10 border-b border-gray-100 pb-6">
-            {profile.boards.map(board => (
-              <button
-                key={board.id}
-                onClick={() => setSelectedBoard(board.id)}
-                className={`px-5 py-2.5 rounded-full font-bold text-sm transition-all duration-200 flex items-center gap-2 ${
-                  selectedBoard === board.id
-                    ? 'bg-black text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                {board.title}
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
-                  selectedBoard === board.id ? 'bg-gray-800' : 'bg-gray-200'
-                }`}>
-                  {board.pins.length}
-                </span>
-              </button>
-            ))}
-          </div>
+          <button 
+            onClick={() => setShowSaved(true)}
+            className={`pb-4 px-2 font-bold text-sm transition-all relative ${showSaved ? 'text-black' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            Saved
+            {showSaved && <div className="absolute bottom-0 left-0 w-full h-1 bg-black rounded-full" />}
+          </button>
+      </div>
 
-          {currentBoard && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {currentBoard.pins.length === 0 ? (
-                <div className="col-span-full py-20 text-center bg-gray-50 rounded-[32px]">
-                  <p className="text-gray-400 font-medium italic">This board is still empty.</p>
-                </div>
-              ) : (
-                currentBoard.pins.map(pin => (
-                  <div key={pin.id} className="group cursor-pointer" onClick={() => navigate(`/pin/${pin.id}`)}>
-                    <div className="relative aspect-[3/4] w-full rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm transition-all duration-300 group-hover:shadow-xl">
-                      {pin.image_url ? (
-                        <img 
-                          src={pin.image_url.startsWith('http') ? pin.image_url : `${API}/uploads/${pin.image_url}`} 
-                          alt={pin.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <span className="text-4xl font-black text-gray-300 opacity-40 group-hover:scale-110 transition-transform">
-                          {pin.title[0]}
-                        </span>
-                      )}
-                      
-                      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-3">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // logic for save could be added here
-                          }}
-                          className="bg-red-600 text-white px-4 py-2 rounded-full font-bold text-xs transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-lg"
-                        >
-                          Save
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-2 px-1">
-                      <p className="text-sm font-bold text-gray-800 truncate leading-tight">
-                        {pin.title}
-                      </p>
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className="text-red-500 text-xs font-bold">♥</span>
-                        <span className="text-[11px] text-gray-500 font-semibold">{pin.likes}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
+      {!showSaved ? (
+        <>
+          {profile.boards.length === 0 ? (
+            <div className="bg-gray-50 rounded-[32px] p-16 text-center border-2 border-dashed border-gray-200">
+              <p className="text-gray-500 font-medium">You don't have any boards yet.</p>
+              <button className="mt-4 text-red-600 font-bold hover:text-red-700 transition-colors">
+                + Create my first board
+              </button>
             </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
+          ) : (
+            <>
+              <div className="flex flex-wrap justify-center gap-3 mb-10 pb-6">
+                {profile.boards.map(board => (
+                  <button
+                    key={board.id}
+                    onClick={() => setSelectedBoard(board.id)}
+                    className={`px-5 py-2.5 rounded-full font-bold text-sm transition-all duration-200 flex items-center gap-2 ${
+                      selectedBoard === board.id
+                        ? 'bg-gray-100 text-black shadow-sm'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {board.title}
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
+                      selectedBoard === board.id ? 'bg-white shadow-sm' : 'bg-gray-100'
+                    }`}>
+                      {board.pins.length}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {currentBoard && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {currentBoard.pins.length === 0 ? (
+                    <div className="col-span-full py-20 text-center bg-gray-50 rounded-[32px]">
+                      <p className="text-gray-400 font-medium italic">This board is still empty.</p>
+                    </div>
+                  ) : (
+                                        currentBoard.pins.map(pin => (
+                                          <PinCard 
+                                            key={pin.id} 
+                                            pin={pin} 
+                                            navigate={navigate} 
+                                            onSave={handleSave} 
+                                            isSaved={mySavedIds.has(pin.id)}
+                                            savingId={savingId}
+                                          />
+                                        ))
+                                      )}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                              {savedPins.length === 0 ? (
+                                <div className="col-span-full py-20 text-center bg-gray-50 rounded-[32px]">
+                                  <p className="text-gray-400 font-medium italic">No saved pins yet.</p>
+                                </div>
+                              ) : (
+                                savedPins.map(pin => (
+                                  <PinCard 
+                                    key={pin.id} 
+                                    pin={pin} 
+                                    navigate={navigate} 
+                                    onSave={handleSave}
+                                    isSaved={mySavedIds.has(pin.id)}
+                                    savingId={savingId}
+                                  />
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                    
+                    function PinCard({ pin, navigate, onSave, isSaved, savingId }) {
+                        return (
+                            <div className="group cursor-pointer" onClick={() => navigate(`/pin/${pin.id}`)}>
+                                <div className="relative aspect-[3/4] w-full rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm transition-all duration-300 group-hover:shadow-xl">
+                                    {pin.image_url ? (
+                                        <img 
+                                            src={pin.image_url.startsWith('http') ? pin.image_url : `${API}${pin.image_url}`} 
+                                            alt={pin.title}
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        />
+                                    ) : (
+                                        <span className="text-4xl font-black text-gray-300 opacity-40 group-hover:scale-110 transition-transform">
+                                            {pin.title[0]}
+                                        </span>
+                                    )}
+                                    
+                                                    <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-3">
+                                    
+                                                        <button 
+                                    
+                                                            onClick={(e) => onSave(e, pin.id)}
+                                    
+                                                            disabled={savingId === pin.id}
+                                    
+                                                            className={`${isSaved ? 'bg-black' : 'bg-red-600 hover:bg-red-700'} text-white px-4 py-2 rounded-full font-bold text-xs transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-lg disabled:opacity-80`}
+                                    
+                                                        >
+                                    
+                                                            {savingId === pin.id ? '...' : isSaved ? 'Saved' : 'Save'}
+                                    
+                                                        </button>
+                                    
+                                                    </div>
+                                    
+                                    
+                                </div>
+                                <div className="mt-2 px-1">
+                                    <p className="text-sm font-bold text-gray-800 truncate leading-tight">
+                                        {pin.title}
+                                    </p>
+                                    <div className="flex items-center gap-1 mt-1">
+                                        <span className="text-red-500 text-xs font-bold">♥</span>
+                                        <span className="text-[11px] text-gray-500 font-semibold">{pin.likes}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }
+                    
 
 export default Profile;

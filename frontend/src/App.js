@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom';
 import Feed from './components/Feed';
 import Login from './components/Login';
@@ -7,12 +7,12 @@ import Discover from './components/Discover';
 import Profile from './components/Profile';
 import Search from './components/Search'; 
 import PinDetail from './components/PinDetail';
-import Friends from './components/Friends';
-import CommunityPins from './components/CommunityPins';
-
-
+import Complexity from './components/Complexity';
+import FriendSearch from './components/FriendSearch';
+import CommunityFeed from './components/CommunityFeed';
 
 function App() {
+
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [userId, setUserId] = useState(localStorage.getItem('userId'));
   const [searchInput, setSearchInput] = useState('');
@@ -26,39 +26,12 @@ function App() {
     navigate('/feed');
   };
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = () => {
     localStorage.clear();
     setToken(null);
     setUserId(null);
     navigate('/');
-  }, [navigate]);
-
-  useEffect(() => {
-    if (!token) return;
-
-    const validateSession = async () => {
-      try {
-        const res = await fetch('http://localhost:8000/users/me', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        if (!res.ok) {
-          handleLogout();
-          return;
-        }
-
-        const me = await res.json();
-        if (me?.id && String(me.id) !== String(userId)) {
-          localStorage.setItem('userId', me.id);
-          setUserId(me.id);
-        }
-      } catch (e) {
-        console.error('Session validation failed:', e);
-      }
-    };
-
-    validateSession();
-  }, [token, handleLogout, userId]);
+  };
 
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter' && searchInput.trim() !== '') {
@@ -89,20 +62,26 @@ function App() {
             </svg>
           </NavLink>
 
-          <NavLink to="/friends" className={({ isActive }) => isActive ? "text-black" : "hover:text-black"}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-          </NavLink>
-
           <NavLink to="/create" className={({ isActive }) => isActive ? "text-black" : "hover:text-black"}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2"/>
               <line x1="12" y1="8" x2="12" y2="16"/>
               <line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+          </NavLink>
+
+          <NavLink to="/friends" className={({ isActive }) => isActive ? "text-black" : "hover:text-black"} title="Recherche d'ami">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <line x1="19" y1="8" x2="19" y2="14"/>
+              <line x1="22" y1="11" x2="16" y2="11"/>
+            </svg>
+          </NavLink>
+
+          <NavLink to="/complexity" className={({ isActive }) => isActive ? "text-red-500" : "hover:text-red-500"}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
             </svg>
           </NavLink>
         </nav>
@@ -138,10 +117,11 @@ function App() {
           <Routes>
             <Route path="/feed" element={<Feed token={token} />} />
             <Route path="/discover" element={<Discover token={token} />} />
-            <Route path="/community/:id" element={<CommunityPins token={token} />} />
-            <Route path="/friends" element={<Friends token={token} />} />
             <Route path="/create" element={<Create token={token} />} />
             <Route path="/search" element={<Search token={token} />} />
+            <Route path="/friends" element={<FriendSearch token={token} />} />
+            <Route path="/community/:id" element={<CommunityFeed token={token} />} />
+            <Route path="/complexity" element={<Complexity token={token} />} />
             <Route path="/profile/:id" element={<Profile token={token} currentUserId={userId} />} />
             <Route path="*" element={<Navigate to="/feed" />} />
             <Route path="/pin/:id" element={<PinDetail token={token} />} />

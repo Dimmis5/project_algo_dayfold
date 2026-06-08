@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const API = 'http://localhost:8000';
+const API = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function Discover({ token }) {
   const [suggestions, setSuggestions] = useState([]);
@@ -37,6 +37,10 @@ function Discover({ token }) {
     } catch (error) {
       console.error("Network error during follow:", error);
     }
+  };
+
+  const handleCommunityClick = async (commId) => {
+    navigate(`/community/${commId}`);
   };
 
   useEffect(() => {
@@ -86,7 +90,7 @@ function Discover({ token }) {
       <div className="relative aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden border border-gray-100 shadow-sm group-hover:shadow-md transition-all">
         {pin.image_url ? (
           <img 
-            src={pin.image_url.startsWith('http') ? pin.image_url : `${API}/uploads/${pin.image_url}`} 
+            src={pin.image_url.startsWith('http') ? pin.image_url : `${API}${pin.image_url}`} 
             alt={pin.title}
             className="w-full h-full object-cover"
           />
@@ -192,8 +196,8 @@ Community calculations are in progress...              </p>
               Object.entries(communityGroups).map(([commId, members]) => (
                 <button
                   key={commId}
-                  onClick={() => navigate(`/community/${commId}`)}
-                  className="flex-1 min-w-[200px] p-5 bg-gray-50 rounded-3xl border border-emerald-50 relative overflow-hidden group text-left hover:border-emerald-200 hover:bg-emerald-50/40 transition-colors"
+                  onClick={() => handleCommunityClick(commId)}
+                  className="flex-1 min-w-[200px] p-5 bg-gray-50 rounded-3xl border border-emerald-50 hover:border-emerald-200 hover:shadow-md relative overflow-hidden group text-left transition-all active:scale-[0.98]"
                 >
                   <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
                     <span className="text-4xl font-black text-emerald-600">#{commId}</span>
@@ -208,6 +212,9 @@ Community calculations are in progress...              </p>
                       </span>
                     ))}
                   </div>
+                  <span className="inline-flex mt-4 text-[10px] font-black text-emerald-700 uppercase tracking-wider relative z-10">
+                    Voir les images
+                  </span>
                 </button>
               ))
             )}
